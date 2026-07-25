@@ -1,121 +1,111 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
+const features = [
+  {
+    title: 'Gentle story crafting',
+    description:
+      'Shape whimsical adventures with a simple prompt and a warm creative flow.',
+  },
+  {
+    title: 'Personalized themes',
+    description:
+      'Choose moods, genres, and characters to make every tale feel tailored.',
+  },
+  {
+    title: 'Readable, shareable output',
+    description:
+      'Enjoy polished storytelling that is easy to read, save, and revisit.',
+  },
+]
+
+const steps = [
+  'Choose a story idea or mood',
+  'Guide the experience with a few simple details',
+  'Publish a story you can read and share',
+]
+
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="page-shell">
+      <header className="topbar">
+        <a className="brand" href="/">
+          WonderTalesAI
+        </a>
+        <nav className="topnav" aria-label="Primary navigation">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#footer">Contact</a>
+        </nav>
+      </header>
 
-      <div className="ticks"></div>
+      <main>
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Create stories that feel magical</p>
+            <h1>Bring your favorite ideas to life with gentle, AI-assisted storytelling.</h1>
+            <p className="hero-text">
+              WonderTalesAI helps you discover charming story paths, build memorable
+              characters, and turn imagination into something beautiful.
+            </p>
+            <div className="hero-actions">
+              <a className="button button-primary" href="#features">
+                Explore features
+              </a>
+              <a className="button button-secondary" href="#how-it-works">
+                See how it works
+              </a>
+            </div>
+          </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <div className="hero-card" aria-label="Preview of the app experience">
+            <p className="card-pill">Coming soon</p>
+            <h2>Shape the next story in minutes</h2>
+            <ul>
+              <li>Pick a theme, mood, and length</li>
+              <li>Craft a story with a warm, guided flow</li>
+              <li>Save and revisit favorite tales</li>
+            </ul>
+          </div>
+        </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section id="features" className="section">
+          <div className="section-heading">
+            <p className="eyebrow">Why families and creators love it</p>
+            <h2>Simple tools for imagination</h2>
+          </div>
+
+          <div className="feature-grid">
+            {features.map((feature) => (
+              <article className="feature-card" key={feature.title}>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="how-it-works" className="section section-alt">
+          <div className="section-heading">
+            <p className="eyebrow">A calm, guided flow</p>
+            <h2>Three easy steps to a beautiful story</h2>
+          </div>
+
+          <div className="steps-list">
+            {steps.map((step, index) => (
+              <div className="step-item" key={step}>
+                <span className="step-number">0{index + 1}</span>
+                <p>{step}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer id="footer" className="footer">
+        <p>WonderTalesAI © 2026</p>
+        <p>Crafting calm, imaginative stories with a thoughtful digital experience.</p>
+      </footer>
+    </div>
   )
 }
 
