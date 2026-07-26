@@ -1,18 +1,35 @@
-.page-shell {
+.app-shell {
   width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.topbar {
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  background: var(--accent);
+  color: white;
+  padding: 0.7rem 1rem;
+  border-radius: 0.5rem;
+  z-index: 100;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.site-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   padding: 1.25rem 0;
 }
 
-.brand {
+.brand-link {
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -21,20 +38,27 @@
   text-decoration: none;
 }
 
-.topnav {
+.site-nav {
   display: flex;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.topnav a {
+.nav-link {
   color: var(--text-muted);
   text-decoration: none;
   font-weight: 500;
 }
 
-.topnav a:hover,
-.topnav a:focus-visible {
+.nav-link.active,
+.nav-link:hover,
+.nav-link:focus-visible {
   color: var(--text-heading);
+}
+
+.main-content {
+  flex: 1;
+  padding: 1rem 0 2rem;
 }
 
 .hero {
@@ -42,7 +66,7 @@
   grid-template-columns: 1.2fr 0.8fr;
   gap: 2rem;
   align-items: center;
-  padding: 3rem 0 2rem;
+  padding: 2rem 0 2rem;
 }
 
 .eyebrow {
@@ -85,6 +109,9 @@
   text-decoration: none;
   font-weight: 600;
   transition: transform 180ms ease, box-shadow 180ms ease;
+  border: none;
+  cursor: pointer;
+  font: inherit;
 }
 
 .button:hover,
@@ -99,16 +126,28 @@
 }
 
 .button-secondary {
-  background: rgba(104, 74, 255, 0.08);
+  background: var(--surface-alt);
   color: var(--text-heading);
 }
 
+.hero-card,
+.card-panel,
+.empty-state,
+.feature-card,
+.step-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+}
+
 .hero-card {
-  background: linear-gradient(135deg, rgba(104, 74, 255, 0.14), rgba(255, 255, 255, 0.9));
-  border: 1px solid rgba(104, 74, 255, 0.16);
-  border-radius: 1.5rem;
   padding: 1.5rem;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.card-panel,
+.empty-state {
+  padding: 1.25rem;
 }
 
 .card-pill {
@@ -122,9 +161,10 @@
   margin-bottom: 0.8rem;
 }
 
-.hero-card h2 {
+.hero-card h2,
+.card-panel h2,
+.empty-state h2 {
   margin: 0 0 0.75rem;
-  font-size: 1.35rem;
   color: var(--text-heading);
 }
 
@@ -141,7 +181,7 @@
 }
 
 .section-alt {
-  background: rgba(248, 247, 255, 0.8);
+  background: var(--surface-alt);
   border-radius: 1.5rem;
   padding: 2rem;
 }
@@ -163,11 +203,7 @@
 }
 
 .feature-card {
-  background: white;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 1rem;
   padding: 1.2rem;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
 }
 
 .feature-card h3 {
@@ -175,7 +211,11 @@
   color: var(--text-heading);
 }
 
-.feature-card p {
+.feature-card p,
+.card-panel p,
+.empty-state p,
+.step-item p,
+.page-intro p {
   margin: 0;
   color: var(--text-muted);
   line-height: 1.6;
@@ -190,10 +230,7 @@
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  background: white;
-  border-radius: 1rem;
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(15, 23, 42, 0.07);
 }
 
 .step-number {
@@ -208,14 +245,43 @@
   font-weight: 700;
 }
 
-.footer {
-  margin-top: auto;
+.page-container {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.page-intro {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.page-intro h1 {
+  margin: 0;
+  color: var(--text-heading);
+}
+
+.loading-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+.site-footer {
   padding: 1.5rem 0 0.5rem;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   color: var(--text-muted);
   font-size: 0.95rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 900px) {
@@ -229,13 +295,13 @@
 }
 
 @media (max-width: 640px) {
-  .topbar,
-  .footer {
+  .site-header,
+  .site-footer {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .topnav {
+  .site-nav {
     flex-wrap: wrap;
     gap: 0.7rem;
   }

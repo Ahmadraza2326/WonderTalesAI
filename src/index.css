@@ -11,6 +11,20 @@
   --accent: #684aff;
   --text-heading: #111827;
   --text-muted: #5b6472;
+  --surface: #ffffff;
+  --surface-alt: #f8f6ff;
+  --border: rgba(17, 24, 39, 0.08);
+  --page-bg: linear-gradient(135deg, #f8f6ff 0%, #fdfcff 100%);
+}
+
+:root[data-theme='dark'] {
+  --accent: #8b7dff;
+  --text-heading: #f9fafb;
+  --text-muted: #cbd5e1;
+  --surface: #111827;
+  --surface-alt: #1f2937;
+  --border: rgba(255, 255, 255, 0.12);
+  --page-bg: linear-gradient(135deg, #111827 0%, #1f2937 100%);
 }
 
 * {
@@ -25,8 +39,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f6ff 0%, #fdfcff 100%);
-  color: #1f2937;
+  background: var(--page-bg);
+  color: var(--text-heading);
 }
 
 #root {
