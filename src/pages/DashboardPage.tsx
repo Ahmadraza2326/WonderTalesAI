@@ -51,9 +51,14 @@ export function DashboardPage() {
           <h2>Welcome to your workspace</h2>
           <p>You are signed in and can now access your protected dashboard area.</p>
         </div>
-        <button type="button" className="button button-secondary" onClick={handleSignOut}>
-          Sign Out
-        </button>
+        <div className="dashboard-actions">
+          <button type="button" className="button button-primary" onClick={() => navigate('/stories/new')}>
+            Create Story
+          </button>
+          <button type="button" className="button button-secondary" onClick={handleSignOut}>
+            Sign Out
+          </button>
+        </div>
       </div>
       <EmptyState title="No stories yet" description="Create your first story experience once the next milestone is ready." />
     </PageContainer>

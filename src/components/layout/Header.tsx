@@ -10,6 +10,7 @@ const links = [
   { to: '/', label: 'Home' },
   { to: '/auth', label: 'Auth' },
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/stories/new', label: 'Create Story' },
   { to: '/profile', label: 'Profile' },
   { to: '/settings', label: 'Settings' },
 ]
