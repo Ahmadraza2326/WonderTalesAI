@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
-import { supabase } from '../lib/supabase'
+import { authService } from '../services/authService'
 
 export function AuthPage() {
   const navigate = useNavigate()
@@ -11,13 +11,13 @@ export function AuthPage() {
   useEffect(() => {
     let isMounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    authService.getSession().then(({ data }) => {
       if (isMounted && data.session) {
         navigate('/dashboard', { replace: true })
       }
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = authService.subscribeToAuthStateChange((_event, session) => {
       if (isMounted && session) {
         navigate('/dashboard', { replace: true })
       }
@@ -33,12 +33,7 @@ export function AuthPage() {
     setIsLoading(true)
     setErrorMessage(null)
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    })
+    const { error } = await authService.signInWithGoogle(window.location.origin)
 
     if (error) {
       setErrorMessage(error.message)

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { authService } from '../services/authService'
 
 export function ProtectedRoute() {
   const location = useLocation()
@@ -9,13 +9,13 @@ export function ProtectedRoute() {
   useEffect(() => {
     let isMounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    authService.getSession().then(({ data }) => {
       if (isMounted) {
         setIsAuthenticated(Boolean(data.session))
       }
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = authService.subscribeToAuthStateChange((_event, session) => {
       if (isMounted) {
         setIsAuthenticated(Boolean(session))
       }

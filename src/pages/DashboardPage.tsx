@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { EmptyState } from '../components/ui/EmptyState'
-import { supabase } from '../lib/supabase'
+import { authService } from '../services/authService'
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -11,7 +11,7 @@ export function DashboardPage() {
   useEffect(() => {
     let isMounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    authService.getSession().then(({ data }) => {
       if (isMounted) {
         setIsAuthenticated(Boolean(data.session))
         if (!data.session) {
@@ -20,7 +20,7 @@ export function DashboardPage() {
       }
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = authService.subscribeToAuthStateChange((_event, session) => {
       if (isMounted) {
         setIsAuthenticated(Boolean(session))
         if (!session) {
@@ -36,7 +36,7 @@ export function DashboardPage() {
   }, [navigate])
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
+    await authService.signOut()
     navigate('/auth', { replace: true })
   }
 

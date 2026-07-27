@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { StoryForm } from '../components/ui/StoryForm'
-import { supabase } from '../lib/supabase'
+import { authService } from '../services/authService'
+import { storyService } from '../services/storyService'
 
 type StoryFormValues = {
   title: string
@@ -27,7 +28,7 @@ export function CreateStoryPage() {
     setSuccessMessage(null)
     setErrorMessage(null)
 
-    const { data: authData } = await supabase.auth.getUser()
+    const { data: authData } = await authService.getUser()
     const user = authData?.user
 
     if (!user) {
@@ -36,19 +37,7 @@ export function CreateStoryPage() {
       return
     }
 
-    const { error } = await supabase.from('stories').insert({
-      user_id: user.id,
-      title: values.title,
-      child_name: values.childName,
-      child_age: values.childAge,
-      language: values.language,
-      theme: values.theme,
-      moral: values.moral,
-      characters: values.characters,
-      story_length: values.storyLength,
-      reading_level: values.readingLevel,
-      status: 'draft',
-    })
+    const { error } = await storyService.createStory(user.id, values)
 
     if (error) {
       setErrorMessage(error.message)
