@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { authService } from '../services/authService'
-import { storyService, type StoryRecord } from '../services/storyService'
+import { storyService } from '../services/storyService'
+import type { StoryRecord } from '../types/story'
 
 export function StoriesPlaceholderPage() {
   const [stories, setStories] = useState<StoryRecord[]>([])
@@ -140,9 +141,9 @@ export function StoriesPlaceholderPage() {
               </div>
 
               <div className="story-card__actions">
-                <button type="button" className="button button-secondary" onClick={() => handlePlaceholderAction('Opening')}>
+                <Link to={`/stories/${story.id}`} className="button button-secondary">
                   Open
-                </button>
+                </Link>
                 <button type="button" className="button button-secondary" onClick={() => handlePlaceholderAction('Editing')}>
                   Edit
                 </button>

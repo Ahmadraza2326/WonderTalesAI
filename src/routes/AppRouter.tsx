@@ -9,6 +9,7 @@ import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { StoriesPlaceholderPage } from '../pages/StoriesPlaceholderPage'
+import { StoryWorkspacePage } from '../pages/StoryWorkspacePage'
 import { useTheme } from '../hooks/useTheme'
 
 export function AppRouter() {
@@ -23,6 +24,7 @@ export function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/stories/new" element={<CreateStoryPage />} />
+            <Route path="/stories/:id" element={<StoryWorkspacePage />} />
             <Route path="/stories" element={<StoriesPlaceholderPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />

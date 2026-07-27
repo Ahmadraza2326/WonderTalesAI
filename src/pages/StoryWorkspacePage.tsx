@@ -1,0 +1,163 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { PageContainer } from '../components/ui/PageContainer'
+import { authService } from '../services/authService'
+import { storyService } from '../services/storyService'
+import type { StoryRecord } from '../types/story'
+
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return '—'
+  }
+
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '—'
+  }
+
+  return parsedDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+export function StoryWorkspacePage() {
+  const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const [story, setStory] = useState<StoryRecord | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadStory() {
+      if (!id) {
+        setErrorMessage('Story not found.')
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setErrorMessage(null)
+
+      const { data: authData, error: authError } = await authService.getUser()
+      if (authError || !authData?.user) {
+        setErrorMessage('Please sign in to view this story.')
+        setIsLoading(false)
+        return
+      }
+
+      const { data, error } = await storyService.getStoryById(id, authData.user.id)
+      if (error || !data) {
+        setErrorMessage('Unable to load the requested story. Please try again or return to your story list.')
+        setIsLoading(false)
+        return
+      }
+
+      setStory(data as StoryRecord)
+      setIsLoading(false)
+    }
+
+    void loadStory()
+  }, [id])
+
+  return (
+    <PageContainer title="Story Workspace" intro="View your story metadata and generated story content.">
+      {errorMessage ? <p className="form-status error">{errorMessage}</p> : null}
+
+      {isLoading ? (
+        <div className="loading-state">
+          <LoadingSpinner />
+          <p>Loading story details…</p>
+        </div>
+      ) : null}
+
+      {!isLoading && !errorMessage && story ? (
+        <div className="story-workspace">
+          <section className="story-metadata card-panel">
+            <div className="story-metadata__header">
+              <h2>{story.title}</h2>
+              <p className="card-pill">{story.status ?? 'draft'}</p>
+            </div>
+            <dl className="story-metadata__details">
+              <div>
+                <dt>Child Name</dt>
+                <dd>{story.child_name ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Child Age</dt>
+                <dd>{story.child_age ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Language</dt>
+                <dd>{story.language ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Theme</dt>
+                <dd>{story.theme ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Moral</dt>
+                <dd>{story.moral ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Characters</dt>
+                <dd>{story.characters ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Story Length</dt>
+                <dd>{story.story_length ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Reading Level</dt>
+                <dd>{story.reading_level ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Created Date</dt>
+                <dd>{formatDate(story.created_at)}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="story-main card-panel">
+            <div className="story-main__header">
+              <h3>Story</h3>
+              <div className="story-main__actions">
+                <button type="button" className="button button-secondary" disabled>
+                  Generate AI Story
+                </button>
+                <button type="button" className="button button-secondary" disabled>
+                  Edit Story
+                </button>
+                <button type="button" className="button button-primary" onClick={() => navigate('/stories')}>
+                  Back to My Stories
+                </button>
+              </div>
+            </div>
+            {story.story_content ? (
+              <div className="story-content">
+                <p>{story.story_content}</p>
+              </div>
+            ) : (
+              <div className="story-empty card-panel">
+                <p>No AI story has been generated yet.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="story-placeholders">
+            <div className="placeholder-card card-panel">
+              <h3>Illustrations</h3>
+              <p>Coming Soon</p>
+            </div>
+            <div className="placeholder-card card-panel">
+              <h3>Narration</h3>
+              <p>Coming Soon</p>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </PageContainer>
+  )
+}

@@ -1,22 +1,5 @@
 import { supabase } from '../lib/supabase'
 
-export type StoryRecord = {
-  id: string
-  title: string
-  child_name: string | null
-  child_age: string | number | null
-  language: string | null
-  status: string | null
-  created_at: string | null
-  story_content?: string | null
-  theme?: string | null
-  moral?: string | null
-  characters?: string | null
-  story_length?: string | null
-  reading_level?: string | null
-  user_id?: string
-}
-
 export const storyService = {
   async createStory(userId: string, values: {
     title: string
@@ -50,6 +33,15 @@ export const storyService = {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
+  },
+
+  async getStoryById(storyId: string, userId: string) {
+    return supabase
+      .from('stories')
+      .select('*')
+      .eq('id', storyId)
+      .eq('user_id', userId)
+      .single()
   },
 
   async deleteStory(storyId: string) {
