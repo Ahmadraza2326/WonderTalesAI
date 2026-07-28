@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { PageContainer } from '../components/ui/PageContainer'
 import { authService } from '../services/authService'
 import { storyService } from '../services/storyService'
+import { testGeminiConnection } from '../services/geminiService'
 import type { StoryRecord } from '../types/story'
 
 function formatDate(value: string | null | undefined) {
@@ -29,6 +30,9 @@ export function StoryWorkspacePage() {
   const [story, setStory] = useState<StoryRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isTestingGemini, setIsTestingGemini] = useState(false)
+  const [geminiResult, setGeminiResult] = useState<string | null>(null)
+  const [geminiError, setGeminiError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadStory() {
@@ -61,6 +65,22 @@ export function StoryWorkspacePage() {
 
     void loadStory()
   }, [id])
+
+  async function handleTestGeminiConnection() {
+    setIsTestingGemini(true)
+    setGeminiError(null)
+    setGeminiResult(null)
+
+    try {
+      const responseText = await testGeminiConnection()
+      setGeminiResult(responseText)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to reach Gemini right now. Please try again.'
+      setGeminiError(message)
+    } finally {
+      setIsTestingGemini(false)
+    }
+  }
 
   return (
     <PageContainer title="Story Workspace" intro="View your story metadata and generated story content.">
@@ -130,6 +150,14 @@ export function StoryWorkspacePage() {
                 <button type="button" className="button button-secondary" disabled>
                   Edit Story
                 </button>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={handleTestGeminiConnection}
+                  disabled={isTestingGemini}
+                >
+                  {isTestingGemini ? 'Testing Gemini…' : 'Test Gemini Connection'}
+                </button>
                 <button type="button" className="button button-primary" onClick={() => navigate('/stories')}>
                   Back to My Stories
                 </button>
@@ -144,6 +172,13 @@ export function StoryWorkspacePage() {
                 <p>No AI story has been generated yet.</p>
               </div>
             )}
+
+            <div className="card-panel" style={{ marginTop: '1rem' }}>
+              <h4>Gemini Connection Test</h4>
+              {isTestingGemini ? <p>Waiting for Gemini response…</p> : null}
+              {geminiResult ? <p>{geminiResult}</p> : null}
+              {geminiError ? <p className="form-status error">{geminiError}</p> : null}
+            </div>
           </section>
 
           <section className="story-placeholders">

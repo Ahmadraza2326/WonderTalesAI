@@ -17,3 +17,20 @@ export function getGeminiClient() {
 
   return geminiClient
 }
+
+export async function testGeminiConnection(): Promise<string> {
+  const client = getGeminiClient()
+  const prompt = 'Reply with exactly:\nWonderTales connection successful.'
+
+  const response = await client.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+  })
+
+  const responseText = response.text?.trim() || ''
+  if (!responseText) {
+    throw new Error('Gemini returned an empty response.')
+  }
+
+  return responseText
+}
