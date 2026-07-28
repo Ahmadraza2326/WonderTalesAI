@@ -23,7 +23,7 @@ export async function testGeminiConnection(): Promise<string> {
   const prompt = 'Reply with exactly:\nWonderTales connection successful.'
 
   const response = await client.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-flash-latest',
     contents: prompt,
   })
 
