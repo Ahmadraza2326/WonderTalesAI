@@ -18,30 +18,41 @@ export function parseStoryDNA(response: string): {
   }
 
   const dna: StoryDNA = {
+    title: '',
+
+    moral: '',
+
     theme: getValue('Theme'),
+
     characters: getValue('Characters')
       .split(',')
-      .map(item => item.trim())
+      .map((item: string) => item.trim())
       .filter(Boolean),
+
+    locations: [],
+
+    importantObjects: [],
 
     vocabulary: getValue('Vocabulary')
       .split(',')
-      .map(item => item.trim())
-      .filter(Boolean),
+      .map((item: string) => ({
+        word: item.trim(),
+      }))
+      .filter(item => item.word.length > 0),
 
     keyEvents: getValue('Key Events')
       .split(';')
-      .map(item => item.trim())
-      .filter(Boolean),
-
-    educationalConcepts: getValue('Educational Concepts')
-      .split(',')
-      .map(item => item.trim())
+      .map((item: string) => item.trim())
       .filter(Boolean),
 
     emotions: getValue('Emotions')
       .split(',')
-      .map(item => item.trim())
+      .map((item: string) => item.trim())
+      .filter(Boolean),
+
+    educationalConcepts: getValue('Educational Concepts')
+      .split(',')
+      .map((item: string) => item.trim())
       .filter(Boolean),
   }
 

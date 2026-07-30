@@ -1,3 +1,17 @@
+export interface VocabularyWord {
+  word: string
+
+  meaning?: string
+
+  difficulty?: 'easy' | 'medium' | 'hard'
+
+  partOfSpeech?: string
+
+  example?: string
+
+  synonym?: string
+}
+
 export interface StoryDNA {
   title: string
 
@@ -13,7 +27,7 @@ export interface StoryDNA {
 
   keyEvents: string[]
 
-  vocabulary: string[]
+  vocabulary: VocabularyWord[]
 
   emotions: string[]
 
