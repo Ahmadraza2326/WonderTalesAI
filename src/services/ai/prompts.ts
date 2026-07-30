@@ -16,6 +16,53 @@ Rules:
 - End with the moral naturally.
 `
 
+const OUTPUT_RULES = `
+Write naturally.
+
+Do not use headings.
+
+Do not use bullet points.
+
+Do not explain the moral.
+
+Show the moral through the characters' actions.
+
+Return only the story text.
+`
+
+function getAgeRules(age: number): string {
+  if (age <= 5) {
+    return `
+Age Guidelines:
+- Use very short sentences.
+- Repeat important words.
+- Keep the story playful.
+- Introduce 3–5 simple vocabulary words.
+- Use a very happy ending.
+`
+  }
+
+  if (age <= 8) {
+    return `
+Age Guidelines:
+- Use simple dialogue.
+- Include one adventure or mystery.
+- Introduce 5–8 new vocabulary words.
+- Keep the story exciting but easy to follow.
+- End with a meaningful lesson.
+`
+  }
+
+  return `
+Age Guidelines:
+- Use richer descriptions.
+- Include a stronger plot.
+- Introduce advanced vocabulary naturally.
+- Encourage curiosity and critical thinking.
+- End with an inspiring conclusion.
+`
+}
+
 export function buildStoryPrompt(story: StoryRecord): string {
   return `
 ${SYSTEM_ROLE}
@@ -51,8 +98,10 @@ ${story.story_length}
 Reading Level:
 ${story.reading_level}
 
+${getAgeRules(Number(story.child_age ?? 7))}
+
 ${SAFETY_RULES}
 
-Return ONLY the story text.
+${OUTPUT_RULES}
 `
 }
