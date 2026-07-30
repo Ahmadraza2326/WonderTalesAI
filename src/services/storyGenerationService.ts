@@ -1,4 +1,4 @@
-import { getGeminiClient } from './geminiService'
+import { aiEngine } from './ai/aiEngine'
 import { buildStoryPrompt } from './ai/prompts'
 import { parseStoryDNA } from './ai/parsers'
 import type { StoryRecord } from '../types/story'
@@ -6,24 +6,13 @@ import type { StoryRecord } from '../types/story'
 export async function generateStory(
   story: StoryRecord
 ): Promise<string> {
-  const client = getGeminiClient()
-
   const prompt = buildStoryPrompt(story)
 
-  const response = await client.models.generateContent({
-    model: 'gemini-flash-latest',
-    contents: prompt,
-  })
+  const response = await aiEngine.generateStory(prompt)
 
-  const text = response.text?.trim()
+  const result = parseStoryDNA(response)
 
-  if (!text) {
-    throw new Error('Gemini returned an empty story.')
-  }
+  console.log('Story DNA:', result.dna)
 
-  const parsed = parseStoryDNA(text)
-
-  console.log('Story DNA:', parsed.dna)
-
-  return parsed.story
+  return result.story
 }
