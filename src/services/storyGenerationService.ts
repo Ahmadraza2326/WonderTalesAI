@@ -1,4 +1,5 @@
 import { getGeminiClient } from './geminiService'
+import { buildStoryPrompt } from './ai/prompts'
 import type { StoryRecord } from '../types/story'
 
 export async function generateStory(
@@ -6,47 +7,7 @@ export async function generateStory(
 ): Promise<string> {
   const client = getGeminiClient()
 
-  const prompt = `
-You are an expert children's author.
-
-Write ONE original children's story.
-
-Requirements:
-
-Title: ${story.title}
-
-Child Name: ${story.child_name}
-
-Child Age: ${story.child_age}
-
-Language: ${story.language}
-
-Theme: ${story.theme}
-
-Characters:
-${story.characters}
-
-Moral:
-${story.moral}
-
-Story Length:
-${story.story_length}
-
-Reading Level:
-${story.reading_level}
-
-Rules:
-
-- Safe for children.
-- Educational.
-- Positive ending.
-- Funny where appropriate.
-- Age appropriate.
-- Include dialogue.
-- End with the moral naturally.
-
-Return ONLY the story text.
-`
+ const prompt = buildStoryPrompt(story)
 
   const response = await client.models.generateContent({
     model: "gemini-flash-latest",
