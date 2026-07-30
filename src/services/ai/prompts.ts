@@ -103,5 +103,20 @@ ${getAgeRules(Number(story.child_age ?? 7))}
 ${SAFETY_RULES}
 
 ${OUTPUT_RULES}
+
+After the story, write exactly this separator:
+
+=== STORY DNA ===
+
+Then include:
+
+Theme:
+Characters:
+Vocabulary:
+Key Events:
+Educational Concepts:
+Emotions:
+
+Do not skip any section.
 `
 }
