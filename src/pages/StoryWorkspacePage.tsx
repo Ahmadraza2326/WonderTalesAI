@@ -5,6 +5,7 @@ import { PageContainer } from '../components/ui/PageContainer'
 import { authService } from '../services/authService'
 import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
+import { generateStory } from '../services/storyGenerationService'
 import type { StoryRecord } from '../types/story'
 
 function formatDate(value: string | null | undefined) {
@@ -33,6 +34,7 @@ export function StoryWorkspacePage() {
   const [isTestingGemini, setIsTestingGemini] = useState(false)
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
   const [geminiError, setGeminiError] = useState<string | null>(null)
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false)
 
   useEffect(() => {
     async function loadStory() {
@@ -81,6 +83,36 @@ export function StoryWorkspacePage() {
       setIsTestingGemini(false)
     }
   }
+  async function handleGenerateStory() {
+  if (!story) {
+    return
+  }
+
+  setIsGeneratingStory(true)
+
+  try {
+   const generatedStory = await generateStory(story)
+
+await storyService.updateStory(story.id, {
+  story_content: generatedStory,
+  status: 'completed',
+})
+
+setStory({
+  ...story,
+  story_content: generatedStory,
+  status: 'completed',
+})
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : 'Failed to generate story.'
+    )
+  } finally {
+    setIsGeneratingStory(false)
+  }
+}
 
   return (
     <PageContainer title="Story Workspace" intro="View your story metadata and generated story content.">
@@ -144,9 +176,16 @@ export function StoryWorkspacePage() {
             <div className="story-main__header">
               <h3>Story</h3>
               <div className="story-main__actions">
-                <button type="button" className="button button-secondary" disabled>
-                  Generate AI Story
-                </button>
+                <button
+  type="button"
+  className="button button-secondary"
+  onClick={handleGenerateStory}
+  disabled={isGeneratingStory}
+>
+  {isGeneratingStory
+    ? 'Generating Story...'
+    : 'Generate AI Story'}
+</button>
                 <button type="button" className="button button-secondary" disabled>
                   Edit Story
                 </button>

@@ -44,6 +44,18 @@ export const storyService = {
       .single()
   },
 
+    async updateStory(
+    storyId: string,
+    updates: {
+      story_content?: string
+      status?: string
+    }
+  ) {
+    return supabase
+      .from('stories')
+      .update(updates)
+      .eq('id', storyId)
+  },
   async deleteStory(storyId: string) {
     return supabase.from('stories').delete().eq('id', storyId)
   },
