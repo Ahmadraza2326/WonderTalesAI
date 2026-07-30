@@ -1,96 +1,76 @@
 import type { StoryRecord } from '../../types/story'
 
-const SYSTEM_ROLE = `
-You are an expert children's author.
+const SYSTEM_PROMPT = `
+You are Orbis AI.
+
+You are one of the world's best children's educational storytellers.
+
+Your goal is to create stories that are:
+
+- Safe
+- Educational
+- Creative
+- Emotionally engaging
+- Age appropriate
+
+Never generate harmful, frightening, violent or inappropriate content.
+
+Always encourage curiosity, kindness and learning.
 `
 
-const SAFETY_RULES = `
-Rules:
+const STORY_RULES = `
+Writing Rules:
 
-- Safe for children.
-- Educational.
-- Positive ending.
-- Funny where appropriate.
-- Age appropriate.
+- Write naturally.
 - Include dialogue.
-- End with the moral naturally.
-`
+- Do not use headings.
+- Do not use bullet points.
+- Show the moral through actions.
+- End positively.
+- Make the story memorable.
 
-const OUTPUT_RULES = `
-Write naturally.
+Output Rules:
 
-Do not use headings.
-
-Do not use bullet points.
-
-Do not explain the moral.
-
-Show the moral through the characters' actions.
-
-Return only the story text.
-`
-
-const LEARNING_PACKAGE_RULES = `
-You are generating an Orbis Learning Package.
-
-The response must follow this exact order:
-
-1. Story
-
-2. === STORY DNA ===
-
-Theme:
-Characters:
-Vocabulary:
-Key Events:
-Educational Concepts:
-Emotions:
-
-Only include the sections above.
-
-Do not add anything else.
+- Return only the requested content.
+- Follow the requested structure exactly.
 `
 
 function getAgeRules(age: number): string {
   if (age <= 5) {
     return `
 Age Guidelines:
-- Use very short sentences.
-- Repeat important words.
-- Keep the story playful.
-- Introduce 3–5 simple vocabulary words.
-- Use a very happy ending.
+
+- Very short sentences.
+- Simple vocabulary.
+- Repetition is encouraged.
+- Happy ending.
 `
   }
 
   if (age <= 8) {
     return `
 Age Guidelines:
-- Use simple dialogue.
-- Include one adventure or mystery.
-- Introduce 5–8 new vocabulary words.
-- Keep the story exciting but easy to follow.
-- End with a meaningful lesson.
+
+- Simple dialogue.
+- Small adventure.
+- Easy vocabulary.
+- Clear lesson.
 `
   }
 
   return `
 Age Guidelines:
-- Use richer descriptions.
-- Include a stronger plot.
-- Introduce advanced vocabulary naturally.
-- Encourage curiosity and critical thinking.
-- End with an inspiring conclusion.
+
+- Rich descriptions.
+- Larger adventure.
+- More advanced vocabulary.
+- Encourage imagination.
 `
 }
 
-export function buildStoryPrompt(story: StoryRecord): string {
+function buildStoryRequest(story: StoryRecord): string {
   return `
-${SYSTEM_ROLE}
-
-Write ONE original children's story.
-
-Requirements:
+Generate one original children's story.
 
 Title:
 ${story.title}
@@ -121,10 +101,98 @@ ${story.reading_level}
 
 ${getAgeRules(Number(story.child_age ?? 7))}
 
-${SAFETY_RULES}
+After the story write exactly:
 
-${OUTPUT_RULES}
+=== STORY DNA ===
 
-${LEARNING_PACKAGE_RULES}
+Theme:
+Characters:
+Vocabulary:
+Key Events:
+Educational Concepts:
+Emotions:
+`
+}
+
+export function buildStoryPrompt(story: StoryRecord): string {
+  return `
+${SYSTEM_PROMPT}
+
+${STORY_RULES}
+
+${buildStoryRequest(story)}
+`
+}
+export function buildLearningPackagePrompt(
+  story: StoryRecord
+): string {
+  return `
+${SYSTEM_PROMPT}
+
+${STORY_RULES}
+
+Generate ONE complete Learning Package.
+
+Return ONLY valid JSON.
+
+Do not wrap the JSON in markdown.
+
+Do not use \`\`\`json.
+
+The JSON must exactly match this structure:
+
+{
+  "story": "...",
+  "storyDNA": {
+    "title": "...",
+    "moral": "...",
+    "theme": "...",
+    "characters": [],
+    "locations": [],
+    "importantObjects": [],
+    "keyEvents": [],
+    "vocabulary": [],
+    "emotions": [],
+    "educationalConcepts": []
+  },
+  "vocabulary": [],
+  "quizSeeds": [],
+  "gameSeeds": [],
+  "parentGuide": {},
+  "illustrations": [],
+  "narration": {},
+  "metadata": {}
+}
+
+Story Requirements
+
+Title:
+${story.title}
+
+Child Name:
+${story.child_name}
+
+Child Age:
+${story.child_age}
+
+Language:
+${story.language}
+
+Theme:
+${story.theme}
+
+Characters:
+${story.characters}
+
+Moral:
+${story.moral}
+
+Story Length:
+${story.story_length}
+
+Reading Level:
+${story.reading_level}
+
+${getAgeRules(Number(story.child_age ?? 7))}
 `
 }
