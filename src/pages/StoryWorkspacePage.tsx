@@ -7,6 +7,10 @@ import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
 import { generateLearningPackage } from '../services/learningPackageGenerationService'
 import type { StoryRecord } from '../types/story'
+import { VocabularySection } from '../components/story/VocabularySection'
+import { ReadingSkillsSection } from '../components/story/ReadingSkillsSection'
+import { LifeSkillsSection } from '../components/story/LifeSkillsSection'
+import { StoryDNASection } from '../components/story/StoryDNASection'
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -287,6 +291,14 @@ export function StoryWorkspacePage() {
                 <p>No AI story has been generated yet.</p>
               </div>
             )}
+
+            <VocabularySection story={story} />
+
+<ReadingSkillsSection story={story} />
+
+<LifeSkillsSection story={story} />
+
+<StoryDNASection story={story} />
             
             {story.learning_package?.vocabulary?.length ? (
   <div className="card-panel" style={{ marginTop: '1.5rem' }}>
@@ -517,45 +529,8 @@ export function StoryWorkspacePage() {
       )}
     </ul>
 
-    <h4>Important Objects</h4>
-
-    <ul>
-      {story.learning_package.storyDNA.importantObjects?.map(
-        (item: string, index: number) => (
-          <li key={index}>{item}</li>
-        )
-      )}
-    </ul>
-
-    <h4>Key Events</h4>
-
-    <ul>
-      {story.learning_package.storyDNA.keyEvents?.map(
-        (event: string, index: number) => (
-          <li key={index}>{event}</li>
-        )
-      )}
-    </ul>
-
-    <h4>Educational Concepts</h4>
-
-    <ul>
-      {story.learning_package.storyDNA.educationalConcepts?.map(
-        (concept: string, index: number) => (
-          <li key={index}>{concept}</li>
-        )
-      )}
-    </ul>
-
-    <h4>Emotions</h4>
-
-    <ul>
-      {story.learning_package.storyDNA.emotions?.map(
-        (emotion: string, index: number) => (
-          <li key={index}>{emotion}</li>
-        )
-      )}
-    </ul>
+    
+   
 
   </div>
 ) : null}

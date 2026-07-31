@@ -1,19 +1,29 @@
+import type { LearningPackage } from '../services/ai/learningPackage'
+
 export interface StoryRecord {
   id: string
+
   title: string
+
   child_name: string | null
+
   child_age: string | number | null
+
   language: string | null
 
   theme?: string | null
+
   moral?: string | null
+
   characters?: string | null
+
   story_length?: string | null
+
   reading_level?: string | null
 
   story_content?: string | null
 
-  learning_package?: any
+  learning_package?: LearningPackage
 
   generation_status?: string | null
 
