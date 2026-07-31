@@ -56,6 +56,48 @@ export const learningPackageSchemaExample: LearningPackage = {
     ]
   },
 
+  readingSkills: [
+    {
+      skill: "Prediction",
+      explanation: "Encourages children to think about what might happen next."
+    },
+    {
+      skill: "Sequencing",
+      explanation: "Helps children understand the order of events."
+    }
+  ],
+
+  lifeSkills: [
+    {
+      skill: "Kindness",
+      explanation: "Helping others even when nothing is expected in return."
+    },
+    {
+      skill: "Courage",
+      explanation: "Facing challenges with confidence."
+    }
+  ],
+
+  criticalThinking: [
+    {
+      question: "What could Ali have done differently to help Leo?"
+    },
+    {
+      question: "Why do you think helping the bird changed the ending?"
+    }
+  ],
+
+  creativeActivity: {
+    title: "Draw Your Own Adventure",
+    instructions:
+      "Draw another magical place that Ali and Leo could explore together."
+  },
+
+  funFact: {
+    title: "Did You Know?",
+    fact: "Lions can sleep for around 20 hours every day."
+  },
+
   vocabulary: [
     {
       word: "Gigantic",
@@ -127,7 +169,7 @@ export const learningPackageSchemaExample: LearningPackage = {
   },
 
   metadata: {
-    schemaVersion: 1,
+    schemaVersion: 2,
 
     language: "English",
 

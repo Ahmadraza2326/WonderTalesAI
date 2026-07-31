@@ -17,6 +17,30 @@ export interface ParentGuide {
   realLifeActivity: string
 }
 
+export interface ReadingSkill {
+  skill: string
+  explanation: string
+}
+
+export interface LifeSkill {
+  skill: string
+  explanation: string
+}
+
+export interface CriticalThinkingQuestion {
+  question: string
+}
+
+export interface CreativeActivity {
+  title: string
+  instructions: string
+}
+
+export interface FunFact {
+  title: string
+  fact: string
+}
+
 export interface IllustrationPrompt {
   scene: number
   prompt: string
@@ -39,6 +63,16 @@ export interface LearningPackage {
   story: string
 
   storyDNA: StoryDNA
+
+  readingSkills: ReadingSkill[]
+
+  lifeSkills: LifeSkill[]
+
+  criticalThinking: CriticalThinkingQuestion[]
+
+  creativeActivity: CreativeActivity
+
+  funFact: FunFact
 
   vocabulary: VocabularyWord[]
 

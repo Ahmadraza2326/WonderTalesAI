@@ -1,4 +1,8 @@
 import type { StoryRecord } from '../../types/story'
+import { getLearningPackageSchemaPrompt } from './schemaToPrompt.ts'
+import { EDUCATION_RULES } from './educationRules'
+import { VOCABULARY_RULES } from './vocabularyRules'
+import { QUIZ_RULES } from './quizRules'
 
 const SYSTEM_PROMPT = `
 You are Orbis AI.
@@ -33,6 +37,49 @@ Output Rules:
 
 - Return only the requested content.
 - Follow the requested structure exactly.
+`
+
+const STORY_DNA_RULES = `
+Generate Story DNA.
+
+Include:
+
+- Title
+- Moral
+- Theme
+- Characters
+- Locations
+- Important Objects
+- Key Events
+- Vocabulary
+- Emotions
+- Educational Concepts
+`
+
+const READING_SKILLS_RULES = `
+Generate 2–4 reading skills.
+
+Each skill must include:
+
+- skill
+- explanation
+`
+
+const LIFE_SKILLS_RULES = `
+Generate 2–4 life skills.
+
+Each skill must include:
+
+- skill
+- explanation
+`
+
+const CRITICAL_THINKING_RULES = `
+Generate 2 thoughtful questions.
+
+Do not ask simple recall questions.
+
+Encourage reasoning.
 `
 
 function getAgeRules(age: number): string {
@@ -123,6 +170,7 @@ ${STORY_RULES}
 ${buildStoryRequest(story)}
 `
 }
+
 export function buildLearningPackagePrompt(
   story: StoryRecord
 ): string {
@@ -130,6 +178,20 @@ export function buildLearningPackagePrompt(
 ${SYSTEM_PROMPT}
 
 ${STORY_RULES}
+
+${STORY_DNA_RULES}
+
+${READING_SKILLS_RULES}
+
+${LIFE_SKILLS_RULES}
+
+${CRITICAL_THINKING_RULES}
+
+${EDUCATION_RULES}
+
+${VOCABULARY_RULES}
+
+${QUIZ_RULES}
 
 Generate ONE complete Learning Package.
 
@@ -139,30 +201,9 @@ Do not wrap the JSON in markdown.
 
 Do not use \`\`\`json.
 
-The JSON must exactly match this structure:
+The JSON must exactly match this schema:
 
-{
-  "story": "...",
-  "storyDNA": {
-    "title": "...",
-    "moral": "...",
-    "theme": "...",
-    "characters": [],
-    "locations": [],
-    "importantObjects": [],
-    "keyEvents": [],
-    "vocabulary": [],
-    "emotions": [],
-    "educationalConcepts": []
-  },
-  "vocabulary": [],
-  "quizSeeds": [],
-  "gameSeeds": [],
-  "parentGuide": {},
-  "illustrations": [],
-  "narration": {},
-  "metadata": {}
-}
+${getLearningPackageSchemaPrompt()}
 
 Story Requirements
 
