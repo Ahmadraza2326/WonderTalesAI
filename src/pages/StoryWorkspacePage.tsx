@@ -478,6 +478,166 @@ export function StoryWorkspacePage() {
 ) : null}
 
 
+{story.learning_package?.storyDNA ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>🧬 Story DNA</h3>
+
+    <p>
+      <strong>Title:</strong>{' '}
+      {story.learning_package.storyDNA.title}
+    </p>
+
+    <p>
+      <strong>Theme:</strong>{' '}
+      {story.learning_package.storyDNA.theme}
+    </p>
+
+    <p>
+      <strong>Moral:</strong>{' '}
+      {story.learning_package.storyDNA.moral}
+    </p>
+
+    <h4>Characters</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.characters?.map(
+        (character: string, index: number) => (
+          <li key={index}>{character}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Locations</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.locations?.map(
+        (location: string, index: number) => (
+          <li key={index}>{location}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Important Objects</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.importantObjects?.map(
+        (item: string, index: number) => (
+          <li key={index}>{item}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Key Events</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.keyEvents?.map(
+        (event: string, index: number) => (
+          <li key={index}>{event}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Educational Concepts</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.educationalConcepts?.map(
+        (concept: string, index: number) => (
+          <li key={index}>{concept}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Emotions</h4>
+
+    <ul>
+      {story.learning_package.storyDNA.emotions?.map(
+        (emotion: string, index: number) => (
+          <li key={index}>{emotion}</li>
+        )
+      )}
+    </ul>
+
+  </div>
+) : null}
+
+
+{story.learning_package?.illustrations?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>🎨 Illustration Gallery</h3>
+
+    {story.learning_package.illustrations.map(
+      (illustration: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            border: '1px solid #ddd',
+            borderRadius: '10px',
+          }}
+        >
+          <h4>Scene {illustration.scene}</h4>
+
+          <p>{illustration.prompt}</p>
+
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled
+          >
+            Generate Image (Coming Soon)
+          </button>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+
+
+{story.learning_package?.narration ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>🎙 Narration</h3>
+
+    <p>
+      <strong>Style:</strong>{" "}
+      {story.learning_package.narration.style}
+    </p>
+
+    <h4>Voices</h4>
+
+    <ul>
+      {story.learning_package.narration.voices?.map(
+        (voice: string, index: number) => (
+          <li key={index}>{voice}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Sound Effects</h4>
+
+    <ul>
+      {story.learning_package.narration.soundEffects?.map(
+        (effect: string, index: number) => (
+          <li key={index}>{effect}</li>
+        )
+      )}
+    </ul>
+
+    <button
+      type="button"
+      className="button button-secondary"
+      disabled
+    >
+      Generate Narration (Coming Soon)
+    </button>
+  </div>
+) : null}
+
+
+
+
+
             <div
               className="card-panel"
               style={{ marginTop: '1rem' }}
