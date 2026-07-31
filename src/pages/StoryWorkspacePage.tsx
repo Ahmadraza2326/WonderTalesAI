@@ -287,6 +287,196 @@ export function StoryWorkspacePage() {
                 <p>No AI story has been generated yet.</p>
               </div>
             )}
+            
+            {story.learning_package?.vocabulary?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>📖 Vocabulary</h3>
+
+    {story.learning_package.vocabulary.map(
+      (item: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <h4>{item.word}</h4>
+
+          <p>
+            <strong>Meaning:</strong> {item.meaning}
+          </p>
+
+          <p>
+            <strong>Difficulty:</strong> {item.difficulty}
+          </p>
+
+          <p>
+            <strong>Example:</strong> {item.example}
+          </p>
+
+          <p>
+            <strong>Synonym:</strong> {item.synonym}
+          </p>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+{story.learning_package?.readingSkills?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>📚 Reading Skills</h3>
+
+    {story.learning_package.readingSkills.map(
+      (skill: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <h4>{skill.skill}</h4>
+
+          <p>{skill.explanation}</p>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+{story.learning_package?.lifeSkills?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>❤️ Life Skills</h3>
+
+    {story.learning_package.lifeSkills.map(
+      (skill: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <h4>{skill.skill}</h4>
+
+          <p>{skill.explanation}</p>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+
+{story.learning_package?.criticalThinking?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>🧠 Critical Thinking</h3>
+
+    {story.learning_package.criticalThinking.map(
+      (item: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <p>
+            <strong>Question {index + 1}:</strong> {item.question}
+          </p>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+
+{story.learning_package?.quizSeeds?.length ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>❓ Quiz</h3>
+
+    {story.learning_package.quizSeeds.map(
+      (quiz: any, index: number) => (
+        <div
+          key={index}
+          style={{
+            marginBottom: '1.5rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <h4>Question {index + 1}</h4>
+
+          <p>{quiz.question}</p>
+
+          <ul>
+            {quiz.options?.map((option: string, optionIndex: number) => (
+              <li key={optionIndex}>{option}</li>
+            ))}
+          </ul>
+
+          <p>
+            <strong>Answer:</strong> {quiz.answer}
+          </p>
+
+          <p>
+            <strong>Explanation:</strong> {quiz.explanation}
+          </p>
+        </div>
+      )
+    )}
+  </div>
+) : null}
+
+
+
+{story.learning_package?.creativeActivity ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>🎨 Creative Activity</h3>
+
+    <h4>{story.learning_package.creativeActivity.title}</h4>
+
+    <p>{story.learning_package.creativeActivity.instructions}</p>
+  </div>
+) : null}
+
+
+{story.learning_package?.funFact ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>💡 Fun Fact</h3>
+
+    <h4>{story.learning_package.funFact.title}</h4>
+
+    <p>{story.learning_package.funFact.fact}</p>
+  </div>
+) : null}
+
+
+{story.learning_package?.parentGuide ? (
+  <div className="card-panel" style={{ marginTop: '1.5rem' }}>
+    <h3>👨‍👩‍👧 Parent Guide</h3>
+
+    <h4>Discussion Questions</h4>
+
+    <ul>
+      {story.learning_package.parentGuide.discussionQuestions?.map(
+        (question: string, index: number) => (
+          <li key={index}>{question}</li>
+        )
+      )}
+    </ul>
+
+    <h4>Real Life Activity</h4>
+
+    <p>{story.learning_package.parentGuide.realLifeActivity}</p>
+  </div>
+) : null}
+
 
             <div
               className="card-panel"
