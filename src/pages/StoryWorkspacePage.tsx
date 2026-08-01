@@ -6,8 +6,12 @@ import { authService } from '../services/authService'
 import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
 import { generateLearningPackage } from '../services/learningPackageGenerationService'
+import { generateStoryBook } from '../services/storybookGenerator'
+import { generateStoryNarration } from '../services/ai/narrationGenerationService'
 import type { StoryRecord } from '../types/story'
+import type { StoryNarration } from '../types/narration'
 import { StoryViewer } from '../components/story/StoryViewer'
+import { StoryBookViewer } from '../components/story/StoryBookViewer'
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -39,6 +43,8 @@ export function StoryWorkspacePage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
   const [geminiError, setGeminiError] = useState<string | null>(null)
+  const [narration, setNarration] = useState<StoryNarration | null>(null)
+  const storyBook = story ? generateStoryBook(story) : null
 
   useEffect(() => {
     async function loadStory() {
@@ -73,7 +79,11 @@ export function StoryWorkspacePage() {
           return
         }
 
-        setStory(data as StoryRecord)
+        const storyData = data as StoryRecord
+        setStory(storyData)
+
+        const generatedNarration = await generateStoryNarration(storyData)
+        setNarration(generatedNarration)
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -148,6 +158,8 @@ export function StoryWorkspacePage() {
       setIsGeneratingStory(false)
     }
   }
+
+  
 
   return (
     <PageContainer
@@ -273,7 +285,10 @@ export function StoryWorkspacePage() {
               </div>
             </div>
 
-            <StoryViewer story={story} />
+            <StoryViewer story={story} narration={narration} />
+            {story && storyBook ? (
+              <StoryBookViewer storyBook={storyBook} />
+            ) : null}
 
             <div className="card-panel" style={{ marginTop: '1rem' }}>
               <h4>Gemini Connection Test</h4>

@@ -1,4 +1,5 @@
 import type { StoryRecord } from '../../types/story'
+import type { StoryNarration } from '../../types/narration'
 import { VocabularySection } from './VocabularySection'
 import { ReadingSkillsSection } from './ReadingSkillsSection'
 import { LifeSkillsSection } from './LifeSkillsSection'
@@ -14,10 +15,12 @@ import { NarrationPanel } from './NarrationPanel'
 
 interface StoryViewerProps {
   story: StoryRecord
+  narration: StoryNarration | null
 }
 
 export function StoryViewer({
   story,
+  narration,
 }: StoryViewerProps) {
   return (
     <section className="story-main card-panel">
@@ -56,7 +59,7 @@ export function StoryViewer({
 
     <IllustrationGallery story={story} />
       
-      <NarrationPanel story={story} />
+      <NarrationPanel narration={narration} />
     </section>
   )
 }
