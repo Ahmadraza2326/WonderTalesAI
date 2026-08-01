@@ -29,7 +29,7 @@ export function StoryViewer({
         <div>
           <p className="storybook-reader__eyebrow">Reading Experience</p>
           <h3>Story Reading</h3>
-          <p>Enjoy the narrative in a calm, premium layout designed for children and caregivers.</p>
+          <p>Enjoy the narrative in a calm, premium layout designed for children and caregivers, with illustrations shown page by page.</p>
         </div>
       </div>
 

@@ -3,11 +3,11 @@ export interface StoryPage {
 
   text: string
 
-  illustrationPrompt?: string
+  illustrationPrompt?: string | null
 
-  illustrationUrl?: string
+  illustrationUrl?: string | null
 
-  narrationUrl?: string
+  narrationUrl?: string | null
 }
 
 export interface StoryBook {

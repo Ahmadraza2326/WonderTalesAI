@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { StoryBook } from '../../types/storybook'
 
 interface StoryBookViewerProps {
@@ -18,6 +18,7 @@ export function StoryBookViewer({
   storyBook,
 }: StoryBookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0)
+  const [isImageLoading, setIsImageLoading] = useState(false)
   const pages = storyBook.pages
 
   if (!pages.length) {
@@ -38,6 +39,10 @@ export function StoryBookViewer({
   const readingTime = estimateReadingTime(page.text)
   const isFirstPage = currentPage === 0
   const isLastPage = currentPage === pages.length - 1
+
+  useEffect(() => {
+    setIsImageLoading(Boolean(page.illustrationUrl))
+  }, [currentPage, page.illustrationUrl])
 
   function previousPage() {
     setCurrentPage(value => Math.max(value - 1, 0))
@@ -86,16 +91,30 @@ export function StoryBookViewer({
             <span className="storybook-reader__page-time">{readingTime}</span>
           </div>
 
-          <div className="storybook-reader__illustration">
+          <div className={`storybook-reader__illustration ${isImageLoading ? 'is-loading' : ''}`}>
             {page.illustrationUrl ? (
-              <img
-                src={page.illustrationUrl}
-                alt={`Illustration for page ${page.pageNumber}`}
-              />
+              <>
+                {isImageLoading ? (
+                  <div className="storybook-reader__skeleton" aria-hidden="true" />
+                ) : null}
+                <img
+                  src={page.illustrationUrl}
+                  alt={`Illustration for page ${page.pageNumber}`}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={() => setIsImageLoading(false)}
+                  onError={() => setIsImageLoading(false)}
+                />
+              </>
             ) : (
               <div className="storybook-reader__placeholder">
                 <span aria-hidden="true">🎨</span>
-                <p>Illustration coming soon</p>
+                <p>Illustration will appear here</p>
+                {page.illustrationPrompt ? (
+                  <small>{page.illustrationPrompt}</small>
+                ) : (
+                  <small>Beautiful artwork is ready for this page.</small>
+                )}
               </div>
             )}
           </div>
