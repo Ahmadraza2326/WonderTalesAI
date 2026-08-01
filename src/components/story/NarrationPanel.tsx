@@ -16,9 +16,12 @@ export function NarrationPanel({
 
   if (!narration) {
     return (
-      <section className="card-panel">
-        <h3>🎙️ Narration</h3>
-        <p>No narration available.</p>
+      <section className="narration-panel card-panel">
+        <div className="narration-panel__header">
+          <p className="storybook-reader__eyebrow">Narration</p>
+          <h3>Audio storytelling</h3>
+          <p>No narration available.</p>
+        </div>
       </section>
     )
   }
@@ -47,73 +50,53 @@ export function NarrationPanel({
   }
 
   const handleNext = () => {
-    setCurrentSegment(value =>
-      Math.min(narration.segments.length - 1, value + 1)
-    )
+    setCurrentSegment(value => Math.min(narration.segments.length - 1, value + 1))
   }
 
   return (
-    <section className="card-panel">
-      <h3>🎙️ Narration</h3>
-
-      <p>
-        <strong>Language:</strong>{' '}
-        {narration.language}
-      </p>
-
-      <p>
-        <strong>Total Segments:</strong>{' '}
-        {narration.segments.length}
-      </p>
-
-      <div style={{ marginBottom: '1.5rem' }}>
-        <AudioPlayer
-          isPlaying={isPlaying}
-          currentSegment={currentSegment + 1}
-          totalSegments={narration.segments.length}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          onStop={handleStop}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-        />
+    <section className="narration-panel card-panel">
+      <div className="narration-panel__header">
+        <div>
+          <p className="storybook-reader__eyebrow">Narration</p>
+          <h3>Audio storytelling</h3>
+          <p>Let the story come alive with gentle narration and a polished playback experience.</p>
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-        }}
-      >
-        {narration.segments.map(segment => (
-          <div
-            key={segment.id}
-            style={{
-              padding: '1rem',
-              border: '1px solid #e5e7eb',
-              borderRadius: '12px',
-            }}
-          >
-            <strong>
-              Segment {segment.id}
-            </strong>
+      <div className="narration-panel__summary">
+        <div>Language: {narration.language}</div>
+        <div>{narration.segments.length} segments</div>
+        <div>Current segment: {currentSegment + 1}</div>
+      </div>
 
-            <p
-              style={{
-                marginTop: '.5rem',
-                marginBottom: '.5rem',
-              }}
-            >
-              {segment.text}
-            </p>
+      <AudioPlayer
+        isPlaying={isPlaying}
+        currentSegment={currentSegment + 1}
+        totalSegments={narration.segments.length}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onStop={handleStop}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+      />
+
+      <div className="narration-panel__segments">
+        {narration.segments.map((segment, index) => (
+          <article
+            key={segment.id}
+            className={`narration-panel__segment ${index === currentSegment ? 'is-active' : ''}`}
+          >
+            <div className="narration-panel__segment-head">
+              <strong>Segment {index + 1}</strong>
+              <span className="narration-panel__segment-badge">{segment.speaker}</span>
+            </div>
+
+            <p>{segment.text}</p>
 
             <small>
-              Speaker: {segment.speaker}
-              {' • '}
-              {segment.duration}s
+              {segment.duration}s • {segment.speaker}
             </small>
-          </div>
+          </article>
         ))}
       </div>
     </section>

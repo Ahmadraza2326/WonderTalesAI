@@ -21,53 +21,33 @@ export const AudioPlayer: FC<AudioPlayerProps> = ({
   onPrevious,
   onNext,
 }) => {
+  const isPreviousDisabled = currentSegment <= 1
+  const isNextDisabled = currentSegment >= totalSegments
+
   return (
-    <section
-      style={{
-        borderRadius: '20px',
-        padding: '1.5rem',
-        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.25rem',
-        maxWidth: '640px',
-        margin: '0 auto',
-      }}
-    >
-      <div style={{ textAlign: 'center' }}>
-        <h3 style={{ margin: '0 0 0.35rem', color: '#0f172a' }}>
-          Audio Player
-        </h3>
-        <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
-          Control the narration playback experience
-        </p>
+    <section className="audio-player">
+      <div className="audio-player__headline">
+        <h3>Audio Player</h3>
+        <p>Control the narration playback experience with a gentle, focused layout.</p>
       </div>
 
-      <div
-        style={{
-          textAlign: 'center',
-          padding: '0.9rem 1rem',
-          borderRadius: '999px',
-          background: '#f8fafc',
-          color: '#334155',
-          fontWeight: 600,
-          border: '1px solid #e2e8f0',
-        }}
-      >
+      <div className="audio-player__status" aria-live="polite">
+        <span className={`audio-player__status-dot ${isPlaying ? 'is-playing' : ''}`} />
+        <span>{isPlaying ? 'Playing now' : 'Ready to play'}</span>
+      </div>
+
+      <div className="audio-player__counter">
         Segment {currentSegment} / {totalSegments}
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '0.75rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <button type="button" className="button button-secondary" onClick={onPrevious}>
+      <div className="audio-player__controls">
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={onPrevious}
+          disabled={isPreviousDisabled}
+          aria-label="Play previous segment"
+        >
           Previous
         </button>
 
@@ -75,17 +55,23 @@ export const AudioPlayer: FC<AudioPlayerProps> = ({
           type="button"
           className="button button-primary"
           onClick={isPlaying ? onPause : onPlay}
-          style={{ minWidth: '140px' }}
+          aria-label={isPlaying ? 'Pause narration' : 'Play narration'}
         >
           {isPlaying ? 'Pause' : 'Play'}
         </button>
 
-        <button type="button" className="button button-secondary" onClick={onNext}>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={onNext}
+          disabled={isNextDisabled}
+          aria-label="Play next segment"
+        >
           Next
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="audio-player__footer">
         <button type="button" className="button button-secondary" onClick={onStop}>
           Stop
         </button>

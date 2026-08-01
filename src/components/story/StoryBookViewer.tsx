@@ -5,153 +5,133 @@ interface StoryBookViewerProps {
   storyBook: StoryBook
 }
 
+function estimateReadingTime(text: string) {
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length
+
+  return `${Math.max(1, Math.ceil(words / 140))} min read`
+}
+
 export function StoryBookViewer({
   storyBook,
 }: StoryBookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0)
+  const pages = storyBook.pages
 
-  const page = storyBook.pages[currentPage]
+  if (!pages.length) {
+    return (
+      <section className="storybook-reader card-panel" aria-label="Storybook reader placeholder">
+        <div className="storybook-reader__header">
+          <p className="storybook-reader__eyebrow">Digital Storybook</p>
+          <h2>{storyBook.title}</h2>
+          <p>No pages are available yet.</p>
+        </div>
+      </section>
+    )
+  }
 
-  const progress =
-    ((currentPage + 1) / storyBook.pages.length) * 100
+  const page = pages[currentPage]
+  const progress = ((currentPage + 1) / pages.length) * 100
+  const progressPercent = Math.round(progress)
+  const readingTime = estimateReadingTime(page.text)
+  const isFirstPage = currentPage === 0
+  const isLastPage = currentPage === pages.length - 1
 
   function previousPage() {
-    setCurrentPage(page =>
-      Math.max(page - 1, 0)
-    )
+    setCurrentPage(value => Math.max(value - 1, 0))
   }
 
   function nextPage() {
-    setCurrentPage(page =>
-      Math.min(
-        page + 1,
-        storyBook.pages.length - 1
-      )
-    )
+    setCurrentPage(value => Math.min(value + 1, pages.length - 1))
   }
 
   return (
-    <section className="card-panel">
+    <section className="storybook-reader card-panel" aria-label={`Storybook reader for ${storyBook.title}`}>
+      <div className="storybook-reader__header">
+        <p className="storybook-reader__eyebrow">Digital Storybook</p>
+        <h2>📖 {storyBook.title}</h2>
+        <p>A calm, premium reading experience crafted for little readers and grown-ups alike.</p>
+      </div>
 
-      <h2
-        style={{
-          textAlign: 'center',
-          marginBottom: '1rem',
-        }}
-      >
-        📖 {storyBook.title}
-      </h2>
+      <div className="storybook-reader__progress" aria-label="Reading progress">
+        <div className="storybook-reader__progress-meta">
+          <span className="storybook-reader__progress-label">Reading progress</span>
+          <span className="storybook-reader__progress-stats">
+            {currentPage + 1} / {pages.length} pages • {progressPercent}%
+          </span>
+        </div>
 
-      <div
-        style={{
-          width: '100%',
-          height: '10px',
-          background: '#e5e7eb',
-          borderRadius: '999px',
-          overflow: 'hidden',
-          marginBottom: '1rem',
-        }}
-      >
         <div
-          style={{
-            width: `${progress}%`,
-            height: '100%',
-            background: '#6366f1',
-            transition: 'width .3s ease',
-          }}
-        />
+          className="storybook-reader__progress-track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+        >
+          <div className="storybook-reader__progress-bar" style={{ width: `${progress}%` }} />
+        </div>
+
+        <div className="storybook-reader__progress-details">
+          <span>{readingTime}</span>
+          <span>{progressPercent}% complete</span>
+        </div>
       </div>
 
-      <p
-        style={{
-          textAlign: 'center',
-          fontWeight: 600,
-          marginBottom: '1.5rem',
-        }}
-      >
-        Page {page.pageNumber} of {storyBook.pages.length}
-      </p>
+      <div className="storybook-reader__book">
+        <div className="storybook-reader__page">
+          <div className="storybook-reader__page-top">
+            <span className="storybook-reader__page-badge">Page {page.pageNumber}</span>
+            <span className="storybook-reader__page-time">{readingTime}</span>
+          </div>
 
-      <div
-  style={{
-    marginBottom: '2rem',
-    textAlign: 'center',
-  }}
->
-  {page.illustrationUrl ? (
-    <img
-      src={page.illustrationUrl}
-      alt={`Illustration for page ${page.pageNumber}`}
-      style={{
-        width: '100%',
-        maxWidth: '700px',
-        borderRadius: '18px',
-        boxShadow:
-          '0 12px 30px rgba(0,0,0,.15)',
-      }}
-    />
-  ) : (
-    <div
-      style={{
-        height: '320px',
-        borderRadius: '18px',
-        background: '#f3f4f6',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#6b7280',
-        fontSize: '1rem',
-      }}
-    >
-      🎨 Illustration coming soon...
-    </div>
-  )}
-</div>
+          <div className="storybook-reader__illustration">
+            {page.illustrationUrl ? (
+              <img
+                src={page.illustrationUrl}
+                alt={`Illustration for page ${page.pageNumber}`}
+              />
+            ) : (
+              <div className="storybook-reader__placeholder">
+                <span aria-hidden="true">🎨</span>
+                <p>Illustration coming soon</p>
+              </div>
+            )}
+          </div>
 
-     <div
-  style={{
-    background: '#ffffff',
-    color: '#1f2937',
-    borderRadius: '18px',
-    padding: '2rem',
-    boxShadow:
-      '0 10px 30px rgba(0,0,0,.08)',
-    minHeight: '340px',
-    fontSize: '1.1rem',
-    lineHeight: 2,
-    whiteSpace: 'pre-wrap',
-  }}
->
-        {page.text}
+          <div className="storybook-reader__text">
+            <p>{page.text}</p>
+          </div>
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: '2rem',
-        }}
-      >
+      <div className="storybook-reader__footer">
         <button
-          className="button button-secondary"
+          type="button"
+          className="button button-secondary storybook-reader__nav-button"
           onClick={previousPage}
-          disabled={currentPage === 0}
+          disabled={isFirstPage}
+          aria-label="Go to previous page"
         >
           ← Previous
         </button>
 
+        <div className="storybook-reader__footer-copy">
+          <span>Page {currentPage + 1} of {pages.length}</span>
+          <span>Comfortable edges and soft motion</span>
+        </div>
+
         <button
-          className="button button-primary"
+          type="button"
+          className="button button-primary storybook-reader__nav-button"
           onClick={nextPage}
-          disabled={
-            currentPage ===
-            storyBook.pages.length - 1
-          }
+          disabled={isLastPage}
+          aria-label="Go to next page"
         >
           Next →
         </button>
       </div>
-
     </section>
   )
 }
