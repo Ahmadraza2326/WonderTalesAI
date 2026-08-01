@@ -1,5 +1,6 @@
 import { IllustrationCache } from '../../illustrations/illustrationCache'
 import type { GeneratedIllustration, ImageProvider } from '../imageProvider'
+import { composeIllustrationPrompt } from '../promptComposer'
 import type { IllustrationPrompt } from '../illustrationPromptGenerator'
 
 export class IllustrationGenerationManager {
@@ -22,7 +23,8 @@ export class IllustrationGenerationManager {
   private async generateIllustration(
     prompt: IllustrationPrompt
   ): Promise<GeneratedIllustration> {
-    const cacheKey = this.buildCacheKey(prompt)
+    const composedPrompt = this.composePrompt(prompt)
+    const cacheKey = this.buildCacheKey(composedPrompt)
     const cachedImageUrl = await this.illustrationCache.get(cacheKey)
 
     if (cachedImageUrl) {
@@ -32,9 +34,9 @@ export class IllustrationGenerationManager {
       }
     }
 
-    const generatedImages = await this.imageProvider.generateImages([prompt])
+    const generatedImages = await this.imageProvider.generateImages([composedPrompt])
     const generatedImage = generatedImages.find(
-      image => image.scene === prompt.scene
+      image => image.scene === composedPrompt.scene
     )
 
     if (generatedImage) {
@@ -45,6 +47,17 @@ export class IllustrationGenerationManager {
     return {
       scene: prompt.scene,
       imageUrl: '',
+    }
+  }
+
+  private composePrompt(prompt: IllustrationPrompt): IllustrationPrompt {
+    return {
+      ...prompt,
+      prompt: composeIllustrationPrompt({
+        illustrationPrompt: prompt.prompt,
+        characterProfiles: prompt.characterProfiles ?? [],
+        locationProfiles: prompt.locationProfiles ?? [],
+      }),
     }
   }
 

@@ -1,3 +1,5 @@
+import { buildCharacterProfiles, type CharacterProfile } from './characterConsistency'
+import { buildLocationProfiles, type LocationProfile } from './storyWorldBuilder'
 import type { StoryDNA } from './storyDNA'
 import { extractIllustrationScenes } from './sceneIntelligence'
 
@@ -5,6 +7,8 @@ export interface IllustrationPrompt {
   scene: number
   title: string
   prompt: string
+  characterProfiles?: CharacterProfile[]
+  locationProfiles?: LocationProfile[]
 }
 
 function buildStyleGuide() {
@@ -46,6 +50,8 @@ export function generateIllustrationPrompts(
   storyDNA: StoryDNA
 ): IllustrationPrompt[] {
   const styleGuide = buildStyleGuide()
+  const characterProfiles = buildCharacterProfiles(storyDNA)
+  const locationProfiles = buildLocationProfiles(storyDNA)
 
   const scenes =
     extractIllustrationScenes(storyDNA)
@@ -79,5 +85,7 @@ ${storyDNA.importantObjects.join(', ')}
 Negative Prompt:
 ${buildNegativePrompt()}
 `.trim(),
+    characterProfiles,
+    locationProfiles,
   }))
 }
