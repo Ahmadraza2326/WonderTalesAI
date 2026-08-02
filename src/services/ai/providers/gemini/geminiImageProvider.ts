@@ -1,6 +1,7 @@
 import type { GeneratedIllustration, ImageProvider } from '../../imageProvider'
 import type { IllustrationPrompt } from '../../illustrationPromptGenerator'
 import { getGeminiConfig } from '../../../../config/aiConfig'
+import { getGeminiClient } from '../../../geminiService'
 
 export class GeminiImageProvider implements ImageProvider {
   private readonly config = getGeminiConfig()
@@ -27,6 +28,10 @@ export class GeminiImageProvider implements ImageProvider {
   }
 
   private prepareRequest(prompt: IllustrationPrompt): { prompt: string; scene: number; config: { apiKey?: string; model?: string; timeoutMs?: number; baseUrl?: string } } {
+    const client = getGeminiClient()
+
+    void client
+
     return {
       prompt: prompt.prompt,
       scene: prompt.scene,
