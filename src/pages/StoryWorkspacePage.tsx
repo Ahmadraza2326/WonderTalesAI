@@ -7,6 +7,7 @@ import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
 import { generateLearningPackage } from '../services/learningPackageGenerationService'
 import { generateStoryBook } from '../services/storybookGenerator'
+import { generateStory } from '../services/storyGenerationService'
 import { generateStoryNarration } from '../services/ai/narrationGenerationService'
 import type { StoryRecord } from '../types/story'
 import type { StoryNarration } from '../types/narration'
@@ -132,10 +133,20 @@ export function StoryWorkspacePage() {
     setSuccessMessage(null)
 
     try {
+      const generatedStory = await generateStory(story)
       const learningPackage = await generateLearningPackage(story)
       const generatedAt = new Date().toISOString()
 
+      const storyPayload = {
+        ...story,
+        story_content: generatedStory,
+        learning_package: learningPackage,
+        generation_status: 'generated',
+        generated_at: generatedAt,
+      }
+
       const { error } = await storyService.updateStory(story.id, {
+        story_content: generatedStory,
         learning_package: learningPackage,
         generation_status: 'generated',
         generated_at: generatedAt,
@@ -145,13 +156,10 @@ export function StoryWorkspacePage() {
         throw error
       }
 
-      setStory({
-        ...story,
-        learning_package: learningPackage,
-        generation_status: 'generated',
-        generated_at: generatedAt,
-      })
-      setSuccessMessage('Learning Package generated and saved successfully.')
+      setStory(storyPayload)
+      const generatedStoryBook = await generateStoryBook(storyPayload)
+      setStoryBook(generatedStoryBook)
+      setSuccessMessage('Story, learning package, and storybook generated successfully.')
     } catch (error) {
       setErrorMessage(
         error instanceof Error
