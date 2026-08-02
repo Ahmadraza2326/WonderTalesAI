@@ -1,12 +1,13 @@
 import type { StoryRecord } from '../types/story'
 import type { StoryBook } from '../types/storybook'
 
-import { paginateStory } from './storybookPagination'
+import { generateIllustrations } from './ai/illustrationService'
 import { generateIllustrationPrompts } from './ai/illustrationPromptGenerator'
+import { paginateStory } from './storybookPagination'
 
-export function generateStoryBook(
+export async function generateStoryBook(
   story: StoryRecord
-): StoryBook {
+): Promise<StoryBook> {
   const storyText =
     story.learning_package?.story ??
     story.story_content ??
@@ -35,5 +36,5 @@ export function generateStoryBook(
     })
   )
 
-  return storyBook
+  return generateIllustrations(storyBook, storyDNA)
 }

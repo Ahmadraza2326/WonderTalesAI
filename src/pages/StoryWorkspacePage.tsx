@@ -10,6 +10,7 @@ import { generateStoryBook } from '../services/storybookGenerator'
 import { generateStoryNarration } from '../services/ai/narrationGenerationService'
 import type { StoryRecord } from '../types/story'
 import type { StoryNarration } from '../types/narration'
+import type { StoryBook } from '../types/storybook'
 import { StoryViewer } from '../components/story/StoryViewer'
 import { StoryBookViewer } from '../components/story/StoryBookViewer'
 
@@ -44,7 +45,7 @@ export function StoryWorkspacePage() {
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
   const [geminiError, setGeminiError] = useState<string | null>(null)
   const [narration, setNarration] = useState<StoryNarration | null>(null)
-  const storyBook = story ? generateStoryBook(story) : null
+  const [storyBook, setStoryBook] = useState<StoryBook | null>(null)
 
   useEffect(() => {
     async function loadStory() {
@@ -81,6 +82,9 @@ export function StoryWorkspacePage() {
 
         const storyData = data as StoryRecord
         setStory(storyData)
+
+        const generatedStoryBook = await generateStoryBook(storyData)
+        setStoryBook(generatedStoryBook)
 
         const generatedNarration = await generateStoryNarration(storyData)
         setNarration(generatedNarration)
