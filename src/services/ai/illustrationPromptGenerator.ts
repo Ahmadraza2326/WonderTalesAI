@@ -2,6 +2,8 @@ import { buildCharacterProfiles, type CharacterProfile } from './characterConsis
 import { buildLocationProfiles, type LocationProfile } from './storyWorldBuilder'
 import type { StoryDNA } from './storyDNA'
 import { extractIllustrationScenes } from './sceneIntelligence'
+import { SceneDirector } from './sceneDirector/SceneDirector'
+import { composeIllustrationPrompt } from './promptComposer'
 
 export interface IllustrationPrompt {
   scene: number
@@ -52,16 +54,22 @@ export function generateIllustrationPrompts(
   const styleGuide = buildStyleGuide()
   const characterProfiles = buildCharacterProfiles(storyDNA)
   const locationProfiles = buildLocationProfiles(storyDNA)
+  const sceneDirector = new SceneDirector()
 
   const scenes =
     extractIllustrationScenes(storyDNA)
 
-  return scenes.map(scene => ({
-    scene: scene.scene,
+  return scenes.map(scene => {
+    const sceneDirection = sceneDirector.analyze({
+      sceneDescription: scene.description,
+      characterCount: scene.characters.length,
+      isAction: /adventure|chase|fight|race|explore|pursuit/i.test(scene.description),
+      isEmotional: /sad|happy|love|fear|hope|comfort|friend/i.test(scene.description),
+      isDreamlike: /magic|dream|enchanted|fantasy|moon|star|wish/i.test(scene.description),
+      isQuiet: /sleep|bedtime|calm|quiet|soft|gentle/i.test(scene.description),
+    })
 
-    title: scene.title,
-
-    prompt: `
+    const basePrompt = `
 ${styleGuide}
 
 Theme:
@@ -84,8 +92,28 @@ ${storyDNA.importantObjects.join(', ')}
 
 Negative Prompt:
 ${buildNegativePrompt()}
-`.trim(),
-    characterProfiles,
-    locationProfiles,
-  }))
+`.trim()
+
+    const composedPrompt = composeIllustrationPrompt({
+      illustrationPrompt: basePrompt,
+      characterProfiles,
+      locationProfiles,
+    })
+
+    return {
+      scene: scene.scene,
+      title: scene.title,
+      prompt: `${composedPrompt}
+
+Scene direction:
+Category: ${sceneDirection.category}
+Camera: ${sceneDirection.cameraPreset.name}
+Lighting: ${sceneDirection.lighting}
+Mood: ${sceneDirection.mood}
+Composition: ${sceneDirection.composition}
+Visual emphasis: ${sceneDirection.visualEmphasis}`.trim(),
+      characterProfiles,
+      locationProfiles,
+    }
+  })
 }
