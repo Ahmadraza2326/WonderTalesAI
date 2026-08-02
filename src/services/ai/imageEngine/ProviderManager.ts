@@ -1,4 +1,6 @@
+import { getAIConfig } from '../../../config/aiConfig'
 import { MockImageProvider } from '../mockImageProvider'
+import { GeminiImageProvider } from '../providers/gemini/geminiImageProvider'
 import type { ImageProvider } from '../imageProvider'
 import type { ImageProviderRegistration, ProviderName } from './types'
 
@@ -7,20 +9,40 @@ export class ProviderManager {
   private activeProviderName: ProviderName | null = null
 
   constructor(initialProviders: ImageProviderRegistration[] = []) {
-    if (initialProviders.length === 0) {
-      this.register({
-        name: 'mock',
-        provider: new MockImageProvider(),
-      })
-      this.setActiveProvider('mock')
-      return
-    }
+    this.registerBuiltInProviders()
 
     initialProviders.forEach(registration => {
       this.register(registration)
     })
 
-    this.activeProviderName = initialProviders[0]?.name ?? null
+    this.activeProviderName = this.getConfiguredActiveProviderName()
+  }
+
+  private registerBuiltInProviders(): void {
+    this.register({
+      name: 'mock',
+      provider: new MockImageProvider(),
+    })
+
+    this.register({
+      name: 'gemini',
+      provider: new GeminiImageProvider(),
+    })
+  }
+
+  private getConfiguredActiveProviderName(): ProviderName | null {
+    const { defaultProvider } = getAIConfig()
+    const normalizedProvider = defaultProvider?.trim().toLowerCase() ?? 'mock'
+
+    if (normalizedProvider === 'gemini' && this.providers.has('gemini')) {
+      return 'gemini'
+    }
+
+    if (this.providers.has('mock')) {
+      return 'mock'
+    }
+
+    return this.providers.size > 0 ? Array.from(this.providers.keys())[0] : null
   }
 
   register(registration: ImageProviderRegistration): void {
