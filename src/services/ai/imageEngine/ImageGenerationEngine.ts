@@ -1,13 +1,23 @@
 import type { ImageProvider } from '../imageProvider'
 import { ProviderManager } from './ProviderManager'
-import type { ImageGenerationRequest, ImageGenerationResult, ProviderName } from './types'
+import type {
+  ImageGenerationRequest,
+  ImageGenerationResult,
+  ProviderName,
+} from './types'
 
 export class ImageGenerationEngine {
   private readonly cache = new Map<string, ImageGenerationResult>()
 
-  constructor(private readonly providerManager: ProviderManager = new ProviderManager()) {}
+  private readonly providerManager: ProviderManager
 
-  async generate(request: ImageGenerationRequest): Promise<ImageGenerationResult> {
+  constructor(providerManager: ProviderManager = new ProviderManager()) {
+    this.providerManager = providerManager
+  }
+
+  async generate(
+    request: ImageGenerationRequest
+  ): Promise<ImageGenerationResult> {
     const cacheKey = this.buildCacheKey(request)
 
     const cachedResult = this.cache.get(cacheKey)
