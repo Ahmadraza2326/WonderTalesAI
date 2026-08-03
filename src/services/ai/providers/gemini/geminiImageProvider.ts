@@ -1,10 +1,10 @@
 import type { GeneratedIllustration, ImageProvider } from '../../imageProvider'
 import type { IllustrationPrompt } from '../../illustrationPromptGenerator'
-import { getGeminiConfig } from '../../../../config/aiConfig'
+
 import { getGeminiClient } from '../../../geminiService'
 
 export class GeminiImageProvider implements ImageProvider {
-  private readonly config = getGeminiConfig()
+  
 
   async generateImages(
     prompts: IllustrationPrompt[]
@@ -13,29 +13,32 @@ export class GeminiImageProvider implements ImageProvider {
   }
 
   private async generateImage(
-    prompt: IllustrationPrompt
-  ): Promise<GeneratedIllustration> {
-    this.prepareRequest(prompt)
+  prompt: IllustrationPrompt
+): Promise<GeneratedIllustration> {
 
-    // TODO: Implement Gemini authentication here using the configured API key.
-    // TODO: Send the prepared request to the Gemini image generation endpoint.
-    // TODO: Parse the Gemini response into the standard GeneratedIllustration shape.
+  const client = getGeminiClient()
 
-    return {
-      scene: prompt.scene,
-      imageUrl: '',
-    }
+  const response = await client.models.generateImages({
+    model: 'imagen-4.0-generate-001',
+
+    prompt: prompt.prompt,
+
+    config: {
+      numberOfImages: 1,
+    },
+  })
+
+  const image =
+    response.generatedImages?.[0]?.image?.imageBytes
+
+  if (!image) {
+    throw new Error('Gemini did not return an image.')
   }
 
-  private prepareRequest(prompt: IllustrationPrompt): { prompt: string; scene: number; config: { apiKey?: string; model?: string; timeoutMs?: number; baseUrl?: string } } {
-    const client = getGeminiClient()
+  return {
+    scene: prompt.scene,
 
-    void client
-
-    return {
-      prompt: prompt.prompt,
-      scene: prompt.scene,
-      config: this.config,
-    }
+    imageUrl: `data:image/png;base64,${image}`,
   }
+}
 }
