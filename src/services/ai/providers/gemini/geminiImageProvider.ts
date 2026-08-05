@@ -19,7 +19,7 @@ export class GeminiImageProvider implements ImageProvider {
   const client = getGeminiClient()
 
   const response = await client.models.generateImages({
-    model: 'imagen-4.0-generate-001',
+    model: 'imagen-3.0-generate-002',
 
     prompt: prompt.prompt,
 
