@@ -3,6 +3,8 @@ import type { LearningPackage } from "./ai/learningPackage"
 import type { StoryBook } from "../types/storybook"
 import type { StoryNarration } from "../types/narration"
 
+import { generateStoryBook } from "./storybookGenerator"
+
 export interface StoryAssets {
   storyBook: StoryBook
   narration: StoryNarration
@@ -11,11 +13,11 @@ export interface StoryAssets {
 
 export class AssetEngine {
   async build(
-    _story: StoryRecord,
+    story: StoryRecord,
     _learning: LearningPackage
   ): Promise<StoryAssets> {
     return {
-      storyBook: { title: "Untitled", pages: [] },
+      storyBook: await generateStoryBook(story),
       narration: { title: "Untitled", language: "en", segments: [] },
       illustrations: null,
     }
