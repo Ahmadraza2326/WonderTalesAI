@@ -4,6 +4,7 @@ import type { StoryBook } from "../types/storybook"
 import type { StoryNarration } from "../types/narration"
 
 import { generateStoryBook } from "./storybookGenerator"
+import { generateNarration } from "./narrationGenerator"
 
 export interface StoryAssets {
   storyBook: StoryBook
@@ -18,7 +19,7 @@ export class AssetEngine {
   ): Promise<StoryAssets> {
     return {
       storyBook: await generateStoryBook(story),
-      narration: { title: "Untitled", language: "en", segments: [] },
+      narration: await generateNarration(story),
       illustrations: null,
     }
   }
