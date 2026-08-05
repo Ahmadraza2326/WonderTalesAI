@@ -5,9 +5,9 @@ import { PageContainer } from '../components/ui/PageContainer'
 import { authService } from '../services/authService'
 import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
+import { generateStory } from '../services/storyGenerationService'
 import { generateLearningPackage } from '../services/learningPackageGenerationService'
 import { generateStoryBook } from '../services/storybookGenerator'
-import { generateStory } from '../services/storyGenerationService'
 import { generateStoryNarration } from '../services/ai/narrationGenerationService'
 import type { StoryRecord } from '../types/story'
 import type { StoryNarration } from '../types/narration'
@@ -84,11 +84,11 @@ export function StoryWorkspacePage() {
         const storyData = data as StoryRecord
         setStory(storyData)
 
-        const generatedStoryBook = await generateStoryBook(storyData)
-        setStoryBook(generatedStoryBook)
+       const generatedStoryBook = await generateStoryBook(storyData)
+setStoryBook(generatedStoryBook)
 
-        const generatedNarration = await generateStoryNarration(storyData)
-        setNarration(generatedNarration)
+const generatedNarration = await generateStoryNarration(storyData)
+setNarration(generatedNarration)
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -123,54 +123,61 @@ export function StoryWorkspacePage() {
     }
   }
 
-  async function handleGenerateLearningPackage() {
-    if (!story) {
-      return
-    }
-
-    setIsGeneratingStory(true)
-    setErrorMessage(null)
-    setSuccessMessage(null)
-
-    try {
-      const generatedStory = await generateStory(story)
-      const learningPackage = await generateLearningPackage(story)
-      const generatedAt = new Date().toISOString()
-
-      const storyPayload = {
-        ...story,
-        story_content: generatedStory,
-        learning_package: learningPackage,
-        generation_status: 'generated',
-        generated_at: generatedAt,
-      }
-
-      const { error } = await storyService.updateStory(story.id, {
-        story_content: generatedStory,
-        learning_package: learningPackage,
-        generation_status: 'generated',
-        generated_at: generatedAt,
-      })
-
-      if (error) {
-        throw error
-      }
-
-      setStory(storyPayload)
-      const generatedStoryBook = await generateStoryBook(storyPayload)
-      setStoryBook(generatedStoryBook)
-      setSuccessMessage('Story, learning package, and storybook generated successfully.')
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to generate and save the Learning Package.'
-      )
-    } finally {
-      setIsGeneratingStory(false)
-    }
+async function handleGenerateLearningPackage() {
+  if (!story) {
+    return
   }
 
+  setIsGeneratingStory(true)
+  setErrorMessage(null)
+  setSuccessMessage(null)
+
+  try {
+    const generatedStory = await generateStory(story)
+    const learningPackage = await generateLearningPackage(story)
+    const generatedAt = new Date().toISOString()
+
+    const storyPayload = {
+      ...story,
+      story_content: generatedStory,
+      learning_package: learningPackage,
+      generation_status: 'generated',
+      generated_at: generatedAt,
+    }
+
+    const { error } = await storyService.updateStory(story.id, {
+      story_content: generatedStory,
+      learning_package: learningPackage,
+      generation_status: 'generated',
+      generated_at: generatedAt,
+    })
+
+    if (error) {
+      throw error
+    }
+
+    setStory(storyPayload)
+
+    const generatedStoryBook = await generateStoryBook(storyPayload)
+    setStoryBook(generatedStoryBook)
+
+    const generatedNarration =
+      await generateStoryNarration(storyPayload)
+    setNarration(generatedNarration)
+
+    setSuccessMessage(
+      'Story, learning package, storybook, and narration generated successfully.'
+    )
+  } catch (error) {
+    setErrorMessage(
+      error instanceof Error
+        ? error.message
+        : 'Failed to generate and save the Learning Package.'
+    )
+  } finally {
+    setIsGeneratingStory(false)
+  }
+}
   
 
   return (

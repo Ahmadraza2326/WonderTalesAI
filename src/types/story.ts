@@ -13,6 +13,8 @@ export interface StoryRecord {
 
   theme?: string | null
 
+  genre?: string | null
+
   moral?: string | null
 
   characters?: string | null

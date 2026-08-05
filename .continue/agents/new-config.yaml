@@ -1,0 +1,9 @@
+name: Main Config
+version: 1.0.0
+schema: v1
+models:
+  - name: Gemini 3 Flash
+    provider: google
+    model: gemini-3-flash
+    apiKey: "AQ.Ab8RN6JipQvCcIN5Dpk7QVu-xXM7tLP3iF3mf9xJAle9KXX6Sw"
+    contextLength: 1048576

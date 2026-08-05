@@ -1,0 +1,9 @@
+name: AI Coding Assistant
+version: 1.0.0
+schema: v1
+models:
+  - name: Gemini 1.5 Pro
+    provider: google
+    model: gemini-1.5-pro
+    apiKey: AQ.Ab8RN6JipQvCcIN5Dpk7QVu-xXM7tLP3iF3mf9xJAle9KXX6Sw
+    default: true

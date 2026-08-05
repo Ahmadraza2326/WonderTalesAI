@@ -44,14 +44,14 @@ export const storyService = {
       .single()
   },
 
-   async updateStory(
+ async updateStory(
   storyId: string,
   updates: {
-    story_content?: string
+    story_content?: string | null
     learning_package?: unknown
-    generation_status?: string
-    generated_at?: string
-    status?: string
+    generation_status?: string | null
+    generated_at?: string | null
+    status?: string | null
   }
 ) {
   return supabase
