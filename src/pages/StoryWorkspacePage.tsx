@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { PageContainer } from '../components/ui/PageContainer'
-import { authService } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
 import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
 import { generateStory } from '../services/storyGenerationService'
@@ -36,6 +36,7 @@ function formatDate(value: string | null | undefined) {
 export function StoryWorkspacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [story, setStory] = useState<StoryRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -56,20 +57,17 @@ export function StoryWorkspacePage() {
         return
       }
 
+      if (!user) {
+        setErrorMessage('You must be signed in to view this story.')
+        navigate('/auth')
+        return
+      }
+
       setIsLoading(true)
       setErrorMessage(null)
       setSuccessMessage(null)
 
       try {
-        const { data: authData } = await authService.getUser()
-        const user = authData?.user
-
-        if (!user) {
-          setErrorMessage('You must be signed in to view this story.')
-          navigate('/auth')
-          return
-        }
-
         const { data, error } = await storyService.getStoryById(id, user.id)
 
         if (error) {
@@ -85,12 +83,10 @@ export function StoryWorkspacePage() {
         setStory(storyData)
 
        const generatedStoryBook = await generateStoryBook(storyData)
-       console.log(`[DEBUG 5] StoryWorkspacePage - received storyBook.pages:`, JSON.stringify(generatedStoryBook.pages, null, 2));
-
        setStoryBook(generatedStoryBook)
 
-const generatedNarration = await generateStoryNarration(storyData)
-setNarration(generatedNarration)
+       const generatedNarration = await generateStoryNarration(storyData)
+       setNarration(generatedNarration)
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -103,7 +99,7 @@ setNarration(generatedNarration)
     }
 
     void loadStory()
-  }, [id, navigate])
+  }, [id, navigate, user])
 
   async function handleTestGeminiConnection() {
     setIsTestingGemini(true)
@@ -126,7 +122,7 @@ setNarration(generatedNarration)
   }
 
 async function handleGenerateLearningPackage() {
-  if (!story) {
+  if (!story || !user) {
     return
   }
 
@@ -139,17 +135,9 @@ async function handleGenerateLearningPackage() {
     const learningPackage = await generateLearningPackage(story)
     const generatedAt = new Date().toISOString()
 
-    const storyPayload = {
-      ...story,
+    const { error } = await storyService.updateStory(story.id, user.id, {
       story_content: generatedStory,
-      learning_package: learningPackage,
-      generation_status: 'generated',
-      generated_at: generatedAt,
-    }
-
-    const { error } = await storyService.updateStory(story.id, {
-      story_content: generatedStory,
-      learning_package: learningPackage,
+      learning_package: learningPackage as any,
       generation_status: 'generated',
       generated_at: generatedAt,
     })
@@ -158,13 +146,21 @@ async function handleGenerateLearningPackage() {
       throw error
     }
 
-    setStory(storyPayload)
+    const updatedStory: StoryRecord = {
+      ...story,
+      story_content: generatedStory,
+      learning_package: learningPackage,
+      generation_status: 'generated',
+      generated_at: generatedAt,
+    }
 
-    const generatedStoryBook = await generateStoryBook(storyPayload)
+    setStory(updatedStory)
+
+    const generatedStoryBook = await generateStoryBook(updatedStory)
     setStoryBook(generatedStoryBook)
 
     const generatedNarration =
-      await generateStoryNarration(storyPayload)
+      await generateStoryNarration(updatedStory)
     setNarration(generatedNarration)
 
     setSuccessMessage(

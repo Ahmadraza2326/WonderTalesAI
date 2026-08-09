@@ -1,30 +1,48 @@
 import { supabase } from '../lib/supabase'
+import type { Database } from '../types/database.types'
+
+type StoryInsert = Database['public']['Tables']['stories']['Insert']
+type StoryUpdate = Database['public']['Tables']['stories']['Update']
 
 export const storyService = {
   async createStory(userId: string, values: {
     title: string
     childName: string
-    childAge: string
+    childAge: number | string
     language: string
-    theme: string
-    moral: string
-    characters: string
+    theme?: string
+    moral?: string
+    characters?: string
     storyLength: string
     readingLevel: string
   }) {
-    return supabase.from('stories').insert({
+        const rawAge = typeof values.childAge === 'string' ? values.childAge.trim() : values.childAge
+    const age = typeof rawAge === 'number' ? rawAge : Number(rawAge)
+
+    if (
+      !Number.isInteger(age) ||
+      !Number.isFinite(age) ||
+      age < 0 ||
+      age > 18 ||
+      (typeof rawAge === 'string' && !/^\d+$/.test(rawAge))
+    ) {
+      return { data: null, error: new Error('Invalid child age: must be a whole number between 0 and 18') }
+    }
+
+    const insertData: StoryInsert = {
       user_id: userId,
       title: values.title,
       child_name: values.childName,
-      child_age: values.childAge,
+      child_age: age,
       language: values.language,
-      theme: values.theme,
-      moral: values.moral,
-      characters: values.characters,
+      theme: values.theme ?? null,
+      moral: values.moral ?? null,
+      characters: values.characters ?? null,
       story_length: values.storyLength,
       reading_level: values.readingLevel,
       status: 'draft',
-    })
+    }
+    return supabase.from('stories').insert(insertData).select().single()
   },
 
   async getStoriesForUser(userId: string) {
@@ -44,26 +62,21 @@ export const storyService = {
       .single()
   },
 
- async updateStory(
-  storyId: string,
-  updates: {
-    story_content?: string | null
-    learning_package?: unknown
-    generation_status?: string | null
-    generated_at?: string | null
-    status?: string | null
-  }
-) {
-  return supabase
-    .from('stories')
-    .update(updates)
-    .eq('id', storyId)
-},
+  async updateStory(storyId: string, userId: string, updates: StoryUpdate) {
+    return supabase
+      .from('stories')
+      .update(updates)
+      .eq('id', storyId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+  },
 
-async deleteStory(storyId: string) {
-  return supabase
-    .from('stories')
-    .delete()
-    .eq('id', storyId)
-},
+  async deleteStory(storyId: string, userId: string) {
+    return supabase
+      .from('stories')
+      .delete()
+      .eq('id', storyId)
+      .eq('user_id', userId)
+  },
 }

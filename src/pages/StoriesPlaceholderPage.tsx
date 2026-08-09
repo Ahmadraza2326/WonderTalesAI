@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { authService } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
 import { storyService } from '../services/storyService'
 import type { StoryRecord } from '../types/story'
 
 export function StoriesPlaceholderPage() {
+  const { user } = useAuth()
   const [stories, setStories] = useState<StoryRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -14,18 +15,17 @@ export function StoriesPlaceholderPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function loadStories() {
-    setIsLoading(true)
-    setErrorMessage(null)
-    setFeedbackMessage(null)
-
-    const { data: authData, error: authError } = await authService.getUser()
-    if (authError || !authData?.user) {
+    if (!user) {
       setErrorMessage('Please sign in to view your stories.')
       setIsLoading(false)
       return
     }
 
-    const { data, error } = await storyService.getStoriesForUser(authData.user.id)
+    setIsLoading(true)
+    setErrorMessage(null)
+    setFeedbackMessage(null)
+
+    const { data, error } = await storyService.getStoriesForUser(user.id)
 
     if (error) {
       setErrorMessage('We could not load your stories right now. Please try again.')
@@ -39,9 +39,11 @@ export function StoriesPlaceholderPage() {
 
   useEffect(() => {
     void loadStories()
-  }, [])
+  }, [user])
 
   async function handleDelete(storyId: string) {
+    if (!user) return
+
     const confirmed = window.confirm('Delete this story?')
     if (!confirmed) {
       return
@@ -49,7 +51,7 @@ export function StoriesPlaceholderPage() {
 
     setDeletingId(storyId)
 
-    const { error } = await storyService.deleteStory(storyId)
+    const { error } = await storyService.deleteStory(storyId, user.id)
 
     if (error) {
       setErrorMessage('We could not delete this story. Please try again.')
@@ -60,6 +62,7 @@ export function StoriesPlaceholderPage() {
     setStories((currentStories) => currentStories.filter((story) => story.id !== storyId))
     setDeletingId(null)
   }
+
 
   function handlePlaceholderAction(action: string) {
     setFeedbackMessage(`${action} will be available in a future milestone.`)
