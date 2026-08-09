@@ -1,33 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { authService } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
+import { useState } from 'react'
 
 export function AuthPage() {
   const navigate = useNavigate()
+  const { session } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    let isMounted = true
-
-    authService.getSession().then(({ data }) => {
-      if (isMounted && data.session) {
-        navigate('/dashboard', { replace: true })
-      }
-    })
-
-    const { data: authListener } = authService.subscribeToAuthStateChange((_event, session) => {
-      if (isMounted && session) {
-        navigate('/dashboard', { replace: true })
-      }
-    })
-
-    return () => {
-      isMounted = false
-      authListener.subscription.unsubscribe()
+    if (session) {
+      navigate('/dashboard', { replace: true })
     }
-  }, [navigate])
+  }, [session, navigate])
 
   async function handleGoogleSignIn() {
     setIsLoading(true)
@@ -37,9 +25,8 @@ export function AuthPage() {
 
     if (error) {
       setErrorMessage(error.message)
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (

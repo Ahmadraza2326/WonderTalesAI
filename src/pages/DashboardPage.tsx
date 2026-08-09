@@ -2,83 +2,42 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { EmptyState } from '../components/ui/EmptyState'
-import { authService } from '../services/authService'
 import { storyService } from '../services/storyService'
+import { useAuth } from '../context/AuthContext'
 import type { StoryRecord } from '../types/story'
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const { user, signOut } = useAuth()
   const [stories, setStories] = useState<StoryRecord[]>([])
   const [isLoadingStories, setIsLoadingStories] = useState(false)
 
   useEffect(() => {
-    let isMounted = true
-
     async function loadStories() {
+      if (!user) return
+
       setIsLoadingStories(true)
 
-      const { data: userData, error: userError } = await authService.getUser()
-      if (!isMounted || userError || !userData?.user) {
-        if (isMounted) {
-          setStories([])
-          setIsLoadingStories(false)
-        }
-        return
-      }
-
-      const { data, error } = await storyService.getStoriesForUser(userData.user.id)
-      if (!isMounted) {
-        return
-      }
-
-      if (error) {
-        setStories([])
+      const { data, error } = await storyService.getStoriesForUser(user.id)
+      
+      if (!error && data) {
+        setStories((data as StoryRecord[]).slice(0, 3))
       } else {
-        setStories((data ?? []).slice(0, 3) as StoryRecord[])
+        setStories([])
       }
 
       setIsLoadingStories(false)
     }
 
-    authService.getSession().then(({ data }) => {
-      if (isMounted) {
-        const authenticated = Boolean(data.session)
-        setIsAuthenticated(authenticated)
-        if (!authenticated) {
-          navigate('/auth', { replace: true })
-          return
-        }
-
-        void loadStories()
-      }
-    })
-
-    const { data: authListener } = authService.subscribeToAuthStateChange((_event, session) => {
-      if (isMounted) {
-        const authenticated = Boolean(session)
-        setIsAuthenticated(authenticated)
-        if (!authenticated) {
-          navigate('/auth', { replace: true })
-          return
-        }
-
-        void loadStories()
-      }
-    })
-
-    return () => {
-      isMounted = false
-      authListener.subscription.unsubscribe()
-    }
-  }, [navigate])
+    void loadStories()
+  }, [user])
 
   async function handleSignOut() {
-    await authService.signOut()
+    await signOut()
     navigate('/auth', { replace: true })
   }
 
-  if (isAuthenticated === false) {
+  if (!user) {
     return null
   }
 
