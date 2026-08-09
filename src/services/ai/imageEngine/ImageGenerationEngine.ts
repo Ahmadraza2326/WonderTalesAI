@@ -25,13 +25,17 @@ export class ImageGenerationEngine {
       return cachedResult
     }
 
-    const provider = this.providerManager.getActiveProvider()
+        const provider = this.providerManager.getActiveProvider()
     const illustrations = await provider.generateImages(request.prompts)
 
-    const result: ImageGenerationResult = {
+    console.log(`[2] ImageGenerationEngine.generate - illustrations:`, JSON.stringify(illustrations, null, 2));
+
+        const result: ImageGenerationResult = {
       provider: this.providerManager.getActiveProviderName() ?? 'unknown',
       illustrations,
     }
+
+    console.log('[DEBUG 2] ImageGenerationEngine.generate RESULT:', JSON.stringify(result, null, 2));
 
     this.cache.set(cacheKey, result)
     return result

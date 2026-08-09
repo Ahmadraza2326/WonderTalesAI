@@ -1,6 +1,9 @@
 import { getAIConfig } from '../../../config/aiConfig'
+
+
 import { MockImageProvider } from '../mockImageProvider'
 import { GeminiImageProvider } from '../providers/gemini/geminiImageProvider'
+import { PollinationsImageProvider } from '../providers/pollinations/PollinationsImageProvider'
 import type { ImageProvider } from '../imageProvider'
 import type { ImageProviderRegistration, ProviderName } from './types'
 
@@ -24,18 +27,23 @@ export class ProviderManager {
       provider: new MockImageProvider(),
     })
 
+        this.register({
+      name: 'pollinations',
+      provider: new PollinationsImageProvider(),
+    })
+
     this.register({
       name: 'gemini',
       provider: new GeminiImageProvider(),
     })
   }
 
-  private getConfiguredActiveProviderName(): ProviderName | null {
+    private getConfiguredActiveProviderName(): ProviderName | null {
     const { defaultProvider } = getAIConfig()
-    const normalizedProvider = defaultProvider?.trim().toLowerCase() ?? 'mock'
+    const normalizedProvider = (defaultProvider?.trim().toLowerCase() as ProviderName) ?? 'mock'
 
-    if (normalizedProvider === 'gemini' && this.providers.has('gemini')) {
-      return 'gemini'
+    if (this.providers.has(normalizedProvider)) {
+      return normalizedProvider
     }
 
     if (this.providers.has('mock')) {

@@ -21,6 +21,12 @@ export function StoryBookViewer({
   const [isImageLoading, setIsImageLoading] = useState(false)
   const pages = storyBook.pages
 
+  useEffect(() => {
+    if (pages.length > 0) {
+      setIsImageLoading(Boolean(pages[currentPage]?.illustrationUrl))
+    }
+  }, [currentPage, pages, pages[currentPage]?.illustrationUrl])
+
   if (!pages.length) {
     return (
       <section className="storybook-reader card-panel" aria-label="Storybook reader placeholder">
@@ -33,16 +39,13 @@ export function StoryBookViewer({
     )
   }
 
-  const page = pages[currentPage]
+    const page = pages[currentPage]
+
   const progress = ((currentPage + 1) / pages.length) * 100
   const progressPercent = Math.round(progress)
   const readingTime = estimateReadingTime(page.text)
   const isFirstPage = currentPage === 0
   const isLastPage = currentPage === pages.length - 1
-
-  useEffect(() => {
-    setIsImageLoading(Boolean(page.illustrationUrl))
-  }, [currentPage, page.illustrationUrl])
 
   function previousPage() {
     setCurrentPage(value => Math.max(value - 1, 0))

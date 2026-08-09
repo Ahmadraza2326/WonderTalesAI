@@ -24,17 +24,16 @@ export async function generateStoryBook(
     return storyBook
   }
 
-  const prompts =
-    generateIllustrationPrompts(storyDNA)
+  const prompts = generateIllustrationPrompts(storyDNA)
 
-  storyBook.pages = storyBook.pages.map(
-    (page, index) => ({
-      ...page,
-      illustrationPrompt:
-        prompts[index]?.prompt ??
-        '',
-    })
-  )
+  storyBook.pages = storyBook.pages.map((page, index) => ({
+    ...page,
+    illustrationPrompt: prompts[index]?.prompt ?? '',
+  }))
 
-  return generateIllustrations(storyBook, storyDNA)
+      const storyBookWithImages = await generateIllustrations(storyBook, storyDNA)
+
+  console.log(`[DEBUG 4] storybookGenerator.generateStoryBook - FINAL pages:`, JSON.stringify(storyBookWithImages.pages, null, 2));
+
+  return storyBookWithImages
 }

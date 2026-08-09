@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 
-const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
+// @ts-ignore
+const geminiApiKey = (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_GEMINI_API_KEY : process.env.VITE_GEMINI_API_KEY) as string | undefined
 
 if (!geminiApiKey?.trim()) {
   console.warn('VITE_GEMINI_API_KEY is not configured. Gemini integration will be unavailable until it is provided.')

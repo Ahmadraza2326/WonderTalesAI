@@ -3,6 +3,7 @@ import type { IllustrationPrompt } from './illustrationPromptGenerator'
 export interface GeneratedIllustration {
   scene: number
   imageUrl: string
+  provider?: string
 }
 
 export interface ImageProvider {

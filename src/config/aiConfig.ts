@@ -5,7 +5,7 @@ export interface AIProviderConfig {
   baseUrl?: string
 }
 
-export interface AIConfig {
+  export interface AIConfig {
   gemini: AIProviderConfig
   defaultProvider: string
 }
@@ -32,19 +32,23 @@ function readNumberEnv(name: string): number | undefined {
 }
 
 function normalizeConfig(): AIConfig {
-  const geminiApiKey = readEnv('VITE_GEMINI_API_KEY')
-  const geminiModel = readEnv('VITE_GEMINI_MODEL') ?? 'gemini-2.0-flash'
-  const geminiTimeoutMs = readNumberEnv('VITE_GEMINI_TIMEOUT_MS') ?? 30000
-  const geminiBaseUrl = readEnv('VITE_GEMINI_BASE_URL')
+
+const geminiApiKey =
+  readEnv('VITE_GEMINI_API_KEY')
+
+const geminiTimeoutMs =
+  readNumberEnv('VITE_GEMINI_TIMEOUT_MS') ?? 30000
+
+const geminiBaseUrl =
+  readEnv('VITE_GEMINI_BASE_URL')
 
   return {
     gemini: {
       apiKey: geminiApiKey,
-      model: geminiModel,
       timeoutMs: geminiTimeoutMs,
       baseUrl: geminiBaseUrl,
     },
-    defaultProvider: readEnv('VITE_AI_DEFAULT_PROVIDER') ?? 'mock',
+   defaultProvider: readEnv('VITE_AI_DEFAULT_PROVIDER') ?? 'pollinations',
   }
 }
 

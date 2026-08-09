@@ -85,7 +85,9 @@ export function StoryWorkspacePage() {
         setStory(storyData)
 
        const generatedStoryBook = await generateStoryBook(storyData)
-setStoryBook(generatedStoryBook)
+       console.log(`[DEBUG 5] StoryWorkspacePage - received storyBook.pages:`, JSON.stringify(generatedStoryBook.pages, null, 2));
+
+       setStoryBook(generatedStoryBook)
 
 const generatedNarration = await generateStoryNarration(storyData)
 setNarration(generatedNarration)
@@ -178,7 +180,7 @@ async function handleGenerateLearningPackage() {
     setIsGeneratingStory(false)
   }
 }
-  
+
 
   return (
     <PageContainer
@@ -320,10 +322,6 @@ async function handleGenerateLearningPackage() {
           </section>
 
           <section className="story-placeholders">
-            <div className="placeholder-card card-panel">
-              <h3>Illustrations</h3>
-              <p>Coming Soon</p>
-            </div>
             <div className="placeholder-card card-panel">
               <h3>Narration</h3>
               <p>Coming Soon</p>
