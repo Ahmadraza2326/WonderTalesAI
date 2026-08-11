@@ -9,6 +9,7 @@ import { generateStory } from '../services/storyGenerationService'
 import { generateLearningPackage } from '../services/learningPackageGenerationService'
 import { generateStoryBook } from '../services/storybookGenerator'
 import { generateStoryNarration } from '../services/ai/narrationGenerationService'
+import { storyAssetCacheService } from '../services/storyAssetCacheService'
 import type { StoryRecord } from '../types/story'
 import type { StoryNarration } from '../types/narration'
 import type { StoryBook } from '../types/storybook'
@@ -41,7 +42,10 @@ export function StoryWorkspacePage() {
   const [story, setStory] = useState<StoryRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isTestingGemini, setIsTestingGemini] = useState(false)
-  const [isGeneratingStory, setIsGeneratingStory] = useState(false)
+  const [isGeneratingLearningPackage, setIsGeneratingLearningPackage] =
+    useState(false)
+  const [isGeneratingStoryBook, setIsGeneratingStoryBook] = useState(false)
+  const [isGeneratingNarration, setIsGeneratingNarration] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
@@ -82,11 +86,18 @@ export function StoryWorkspacePage() {
         const storyData = data as StoryRecord
         setStory(storyData)
 
-       const generatedStoryBook = await generateStoryBook(storyData)
-       setStoryBook(generatedStoryBook)
+        try {
+          const [cachedStoryBook, cachedNarration] = await Promise.all([
+            storyAssetCacheService.getStoryBook(storyData, user.id),
+            storyAssetCacheService.getNarration(storyData, user.id),
+          ])
 
-       const generatedNarration = await generateStoryNarration(storyData)
-       setNarration(generatedNarration)
+          setStoryBook(cachedStoryBook)
+          setNarration(cachedNarration)
+        } catch (assetError) {
+          console.error('Unable to load saved story assets:', assetError)
+        }
+
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -100,6 +111,72 @@ export function StoryWorkspacePage() {
 
     void loadStory()
   }, [id, navigate, user])
+
+  async function handleGenerateStoryBook() {
+    if (!story || !user) return
+    setIsGeneratingStoryBook(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    try {
+      const cachedStoryBook = await storyAssetCacheService.getStoryBook(story, user.id)
+
+      if (cachedStoryBook) {
+        setStoryBook(cachedStoryBook)
+        setSuccessMessage('Loaded your saved StoryBook. No images were regenerated.')
+        return
+      }
+
+      if (storyBook) {
+        await storyAssetCacheService.saveStoryBook(story, user.id, storyBook)
+        setSuccessMessage('Current StoryBook saved for future visits.')
+        return
+      }
+
+      const generatedStoryBook = await generateStoryBook(story)
+      await storyAssetCacheService.saveStoryBook(story, user.id, generatedStoryBook)
+      setStoryBook(generatedStoryBook)
+      setSuccessMessage('StoryBook generated and saved for future visits.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to generate StoryBook.'
+      )
+    } finally {
+      setIsGeneratingStoryBook(false)
+    }
+  }
+
+  async function handleGenerateNarration() {
+    if (!story || !user) return
+    setIsGeneratingNarration(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    try {
+      const cachedNarration = await storyAssetCacheService.getNarration(story, user.id)
+
+      if (cachedNarration) {
+        setNarration(cachedNarration)
+        setSuccessMessage('Loaded your saved narration. No narration was regenerated.')
+        return
+      }
+
+      if (narration) {
+        await storyAssetCacheService.saveNarration(story, user.id, narration)
+        setSuccessMessage('Current narration saved for future visits.')
+        return
+      }
+
+      const generatedNarration = await generateStoryNarration(story)
+      await storyAssetCacheService.saveNarration(story, user.id, generatedNarration)
+      setNarration(generatedNarration)
+      setSuccessMessage('Narration generated and saved for future visits.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to generate narration.'
+      )
+    } finally {
+      setIsGeneratingNarration(false)
+    }
+  }
 
   async function handleTestGeminiConnection() {
     setIsTestingGemini(true)
@@ -126,7 +203,7 @@ async function handleGenerateLearningPackage() {
     return
   }
 
-  setIsGeneratingStory(true)
+  setIsGeneratingLearningPackage(true)
   setErrorMessage(null)
   setSuccessMessage(null)
 
@@ -156,16 +233,7 @@ async function handleGenerateLearningPackage() {
 
     setStory(updatedStory)
 
-    const generatedStoryBook = await generateStoryBook(updatedStory)
-    setStoryBook(generatedStoryBook)
-
-    const generatedNarration =
-      await generateStoryNarration(updatedStory)
-    setNarration(generatedNarration)
-
-    setSuccessMessage(
-      'Story, learning package, storybook, and narration generated successfully.'
-    )
+    setSuccessMessage('Story and learning package generated successfully.')
   } catch (error) {
     setErrorMessage(
       error instanceof Error
@@ -173,7 +241,7 @@ async function handleGenerateLearningPackage() {
         : 'Failed to generate and save the Learning Package.'
     )
   } finally {
-    setIsGeneratingStory(false)
+    setIsGeneratingLearningPackage(false)
   }
 }
 
@@ -272,11 +340,33 @@ async function handleGenerateLearningPackage() {
                   type="button"
                   className="button button-secondary"
                   onClick={handleGenerateLearningPackage}
-                  disabled={isGeneratingStory}
+                  disabled={isGeneratingLearningPackage}
                 >
-                  {isGeneratingStory
+                  {isGeneratingLearningPackage
                     ? 'Generating Learning Package...'
                     : 'Generate Learning Package'}
+                </button>
+
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={handleGenerateStoryBook}
+                  disabled={isGeneratingStoryBook}
+                >
+                  {isGeneratingStoryBook
+                    ? 'Generating StoryBook...'
+                    : 'Generate StoryBook'}
+                </button>
+
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={handleGenerateNarration}
+                  disabled={isGeneratingNarration}
+                >
+                  {isGeneratingNarration
+                    ? 'Generating Narration...'
+                    : 'Generate Narration'}
                 </button>
 
                 <button type="button" className="button button-secondary" disabled>

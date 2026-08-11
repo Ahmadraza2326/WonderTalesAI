@@ -25,12 +25,21 @@ export function StoriesPlaceholderPage() {
     setErrorMessage(null)
     setFeedbackMessage(null)
 
+        console.log('Diagnostic: Fetching stories for user:', user.id)
     const { data, error } = await storyService.getStoriesForUser(user.id)
 
     if (error) {
+      console.error('Diagnostic: Failed to fetch stories:', error)
       setErrorMessage('We could not load your stories right now. Please try again.')
       setIsLoading(false)
       return
+    }
+
+    console.log('Diagnostic: Successfully fetched', data?.length, 'stories')
+    if (data) {
+      data.forEach((story) => {
+        console.log('Diagnostic: Story ID:', story.id, '| Title:', story.title, '| User ID:', (story as any).user_id, '| Created:', (story as any).created_at)
+      })
     }
 
     setStories((data ?? []) as StoryRecord[])
