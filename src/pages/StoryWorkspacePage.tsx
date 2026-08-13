@@ -40,6 +40,7 @@ export function StoryWorkspacePage() {
   const { user } = useAuth()
 
   const [story, setStory] = useState<StoryRecord | null>(null)
+  const [storyBook, setStoryBook] = useState<StoryBook | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isTestingGemini, setIsTestingGemini] = useState(false)
   const [isGeneratingLearningPackage, setIsGeneratingLearningPackage] =
@@ -51,7 +52,19 @@ export function StoryWorkspacePage() {
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
   const [geminiError, setGeminiError] = useState<string | null>(null)
   const [narration, setNarration] = useState<StoryNarration | null>(null)
-  const [storyBook, setStoryBook] = useState<StoryBook | null>(null)
+  const [, setShowStoryBookMenu] = useState(false)
+  const [, setShowNarrationMenu] = useState(false)
+
+  // ... (inside component)
+  // Close menus when clicking elsewhere
+  useEffect(() => {
+    function handleClickOutside() {
+      setShowStoryBookMenu(false)
+      setShowNarrationMenu(false)
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     async function loadStory() {
@@ -112,30 +125,26 @@ export function StoryWorkspacePage() {
     void loadStory()
   }, [id, navigate, user])
 
-  async function handleGenerateStoryBook() {
+  async function handleGenerateStoryBook(force = false) {
     if (!story || !user) return
     setIsGeneratingStoryBook(true)
     setErrorMessage(null)
     setSuccessMessage(null)
     try {
-      const cachedStoryBook = await storyAssetCacheService.getStoryBook(story, user.id)
+      if (!force) {
+        const cachedStoryBook = await storyAssetCacheService.getStoryBook(story, user.id)
 
-      if (cachedStoryBook) {
-        setStoryBook(cachedStoryBook)
-        setSuccessMessage('Loaded your saved StoryBook. No images were regenerated.')
-        return
-      }
-
-      if (storyBook) {
-        await storyAssetCacheService.saveStoryBook(story, user.id, storyBook)
-        setSuccessMessage('Current StoryBook saved for future visits.')
-        return
+        if (cachedStoryBook) {
+          setStoryBook(cachedStoryBook)
+          setSuccessMessage('Loaded your saved StoryBook. No images were regenerated.')
+          return
+        }
       }
 
       const generatedStoryBook = await generateStoryBook(story)
       await storyAssetCacheService.saveStoryBook(story, user.id, generatedStoryBook)
       setStoryBook(generatedStoryBook)
-      setSuccessMessage('StoryBook generated and saved for future visits.')
+      setSuccessMessage(`StoryBook ${force ? 'regenerated' : 'generated'} and saved for future visits.`)
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to generate StoryBook.'
@@ -145,30 +154,26 @@ export function StoryWorkspacePage() {
     }
   }
 
-  async function handleGenerateNarration() {
+  async function handleGenerateNarration(force = false) {
     if (!story || !user) return
     setIsGeneratingNarration(true)
     setErrorMessage(null)
     setSuccessMessage(null)
     try {
-      const cachedNarration = await storyAssetCacheService.getNarration(story, user.id)
+      if (!force) {
+        const cachedNarration = await storyAssetCacheService.getNarration(story, user.id)
 
-      if (cachedNarration) {
-        setNarration(cachedNarration)
-        setSuccessMessage('Loaded your saved narration. No narration was regenerated.')
-        return
-      }
-
-      if (narration) {
-        await storyAssetCacheService.saveNarration(story, user.id, narration)
-        setSuccessMessage('Current narration saved for future visits.')
-        return
+        if (cachedNarration) {
+          setNarration(cachedNarration)
+          setSuccessMessage('Loaded your saved narration. No narration was regenerated.')
+          return
+        }
       }
 
       const generatedNarration = await generateStoryNarration(story)
       await storyAssetCacheService.saveNarration(story, user.id, generatedNarration)
       setNarration(generatedNarration)
-      setSuccessMessage('Narration generated and saved for future visits.')
+      setSuccessMessage(`Narration ${force ? 'regenerated' : 'generated'} and saved for future visits.`)
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to generate narration.'
@@ -347,27 +352,53 @@ async function handleGenerateLearningPackage() {
                     : 'Generate Learning Package'}
                 </button>
 
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={handleGenerateStoryBook}
-                  disabled={isGeneratingStoryBook}
-                >
-                  {isGeneratingStoryBook
-                    ? 'Generating StoryBook...'
-                    : 'Generate StoryBook'}
-                </button>
+                <div className="action-group" style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => handleGenerateStoryBook(false)}
+                    disabled={isGeneratingStoryBook}
+                  >
+                    {isGeneratingStoryBook
+                      ? 'Processing...'
+                      : storyBook
+                      ? 'Open StoryBook'
+                      : 'Create StoryBook'}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => handleGenerateStoryBook(true)}
+                    disabled={isGeneratingStoryBook}
+                    title="Regenerate StoryBook"
+                  >
+                    …
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={handleGenerateNarration}
-                  disabled={isGeneratingNarration}
-                >
-                  {isGeneratingNarration
-                    ? 'Generating Narration...'
-                    : 'Generate Narration'}
-                </button>
+                <div className="action-group" style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => handleGenerateNarration(false)}
+                    disabled={isGeneratingNarration}
+                  >
+                    {isGeneratingNarration
+                      ? 'Processing...'
+                      : narration
+                      ? 'Listen to Story'
+                      : 'Create Narration'}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => handleGenerateNarration(true)}
+                    disabled={isGeneratingNarration}
+                    title="Regenerate Narration"
+                  >
+                    …
+                  </button>
+                </div>
 
                 <button type="button" className="button button-secondary" disabled>
                   Edit Story

@@ -57,6 +57,10 @@ async function dataUrlToBlob(dataUrl: string) {
 export const storyAssetCacheService = {
   async getStoryBook(story: StoryRecord, userId: string): Promise<StoryBook | null> {
     const hash = await getHash(story, 'storybook')
+    return this.fetchStoryBook(story, userId, hash)
+  },
+
+  async fetchStoryBook(story: StoryRecord, userId: string, hash: string): Promise<StoryBook | null> {
     const { data, error } = await supabase
       .from('story_assets')
       .select('payload')
