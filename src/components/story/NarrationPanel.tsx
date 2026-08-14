@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AudioPlayer } from './AudioPlayer'
 import { AudioController } from '../../services/audio/audioController'
 import type { StoryNarration } from '../../types/narration'
@@ -12,9 +12,58 @@ export function NarrationPanel({
 }: NarrationPanelProps) {
   const [currentSegment, setCurrentSegment] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const controller = useMemo(() => new AudioController(), [])
+  const [audioError, setAudioError] = useState<string | null>(null)
 
-  if (!narration) {
+  const controllerRef = useRef<AudioController | null>(null)
+  if (!controllerRef.current) {
+    controllerRef.current = new AudioController()
+  }
+  const controller = controllerRef.current
+
+  const currentSegmentRef = useRef(currentSegment)
+  currentSegmentRef.current = currentSegment
+
+  const narrationRef = useRef(narration)
+  narrationRef.current = narration
+
+  const isPlayingRef = useRef(isPlaying)
+  isPlayingRef.current = isPlaying
+
+  // Configure controller callbacks
+  useEffect(() => {
+    controller.setOptions({
+      onPlayStateChange: (playing) => {
+        setIsPlaying(playing)
+      },
+      onError: (err) => {
+        setIsPlaying(false)
+        setAudioError(err.message)
+      },
+      onEnded: () => {
+        const segIndex = currentSegmentRef.current
+        const narr = narrationRef.current
+        if (narr && segIndex + 1 < narr.segments.length) {
+          const nextIndex = segIndex + 1
+          setCurrentSegment(nextIndex)
+          const nextSegment = narr.segments[nextIndex]
+          if (nextSegment) {
+            void controller.playSegment(nextSegment, narr.language)
+          }
+        } else {
+          setIsPlaying(false)
+        }
+      },
+    })
+  }, [controller])
+
+  // Lifecycle cleanup on unmount
+  useEffect(() => {
+    return () => {
+      controller.destroy()
+    }
+  }, [controller])
+
+  if (!narration || !Array.isArray(narration.segments) || narration.segments.length === 0) {
     return (
       <section className="narration-panel card-panel">
         <div className="narration-panel__header">
@@ -26,31 +75,70 @@ export function NarrationPanel({
     )
   }
 
-  const handlePlay = () => {
-    const audioUrl = narration.segments[currentSegment]?.audioUrl
+  const currentSegmentData = narration.segments[currentSegment]
+  const hasRealAudio = Boolean(currentSegmentData?.audioUrl?.trim())
 
-    if (audioUrl) {
-      controller.play(audioUrl)
-      setIsPlaying(true)
+  const handlePlay = () => {
+    setAudioError(null)
+    const segment = narration.segments[currentSegment]
+    if (segment) {
+      void controller.playSegment(segment, narration.language)
     }
   }
 
   const handlePause = () => {
     controller.pause()
-    setIsPlaying(false)
   }
 
   const handleStop = () => {
     controller.stop()
-    setIsPlaying(false)
   }
 
   const handlePrevious = () => {
-    setCurrentSegment(value => Math.max(0, value - 1))
+    const prevIndex = Math.max(0, currentSegment - 1)
+    if (prevIndex === currentSegment) return
+
+    setCurrentSegment(prevIndex)
+    setAudioError(null)
+    if (isPlayingRef.current) {
+      const segment = narration.segments[prevIndex]
+      if (segment) {
+        void controller.playSegment(segment, narration.language)
+      }
+    } else {
+      controller.stop()
+    }
   }
 
   const handleNext = () => {
-    setCurrentSegment(value => Math.min(narration.segments.length - 1, value + 1))
+    const nextIndex = Math.min(narration.segments.length - 1, currentSegment + 1)
+    if (nextIndex === currentSegment) return
+
+    setCurrentSegment(nextIndex)
+    setAudioError(null)
+    if (isPlayingRef.current) {
+      const segment = narration.segments[nextIndex]
+      if (segment) {
+        void controller.playSegment(segment, narration.language)
+      }
+    } else {
+      controller.stop()
+    }
+  }
+
+  const handleSelectSegment = (index: number) => {
+    if (index === currentSegment) return
+
+    setCurrentSegment(index)
+    setAudioError(null)
+    if (isPlayingRef.current) {
+      const segment = narration.segments[index]
+      if (segment) {
+        void controller.playSegment(segment, narration.language)
+      }
+    } else {
+      controller.stop()
+    }
   }
 
   return (
@@ -63,10 +151,17 @@ export function NarrationPanel({
         </div>
       </div>
 
+      {audioError ? (
+        <p className="form-status error" style={{ margin: '0.5rem 0' }}>
+          {audioError}
+        </p>
+      ) : null}
+
       <div className="narration-panel__summary">
         <div>Language: {narration.language}</div>
         <div>{narration.segments.length} segments</div>
         <div>Current segment: {currentSegment + 1}</div>
+        <div>{hasRealAudio ? 'Audio: High Quality' : 'Voice: Browser Synthesizer'}</div>
       </div>
 
       <AudioPlayer
@@ -83,8 +178,10 @@ export function NarrationPanel({
       <div className="narration-panel__segments">
         {narration.segments.map((segment, index) => (
           <article
-            key={segment.id}
+            key={segment.id ?? index}
             className={`narration-panel__segment ${index === currentSegment ? 'is-active' : ''}`}
+            onClick={() => handleSelectSegment(index)}
+            style={{ cursor: 'pointer' }}
           >
             <div className="narration-panel__segment-head">
               <strong>Segment {index + 1}</strong>

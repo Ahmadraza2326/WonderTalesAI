@@ -1,42 +1,60 @@
 import type { StoryRecord } from '../types/story'
-import { generateStory } from './storyGenerationService'
-import { learningEngine } from "./learningEngine"
-import { assetEngine } from "./AssetEngine"
+import type { Json } from '../types/database.types'
+import { assetEngine } from './AssetEngine'
+import { storyService } from './storyService'
+import {
+  generateLearningPackage as generateLearningPackageService,
+} from './learningPackageGenerationService'
 
 export class StoryOrchestrator {
   async generate(story: StoryRecord) {
-    const generatedStory = await this.buildStory(story)
+    const learningPackage = await generateLearningPackageService(story)
+    const generatedStory = learningPackage.story
 
-   const learningPackage =
-  await learningEngine.build(
-    story,
-    generatedStory
-  )
+    const assets = await assetEngine.build(
+      {
+        ...story,
+        story_content: generatedStory,
+        learning_package: learningPackage,
+      },
+      learningPackage
+    )
 
-const assets =
-  await assetEngine.build(
-    story,
-    learningPackage
-  )
-return {
+    return {
+      generatedStory,
+      learningPackage,
+      storyBook: assets.storyBook,
+      narration: assets.narration,
+    }
+  }
 
-  generatedStory,
+  async generateLearningPackage(
+    story: StoryRecord,
+    userId: string
+  ): Promise<StoryRecord> {
+    const learningPackage = await generateLearningPackageService(story)
+    const generatedStory = learningPackage.story
+    const generatedAt = new Date().toISOString()
 
-  learningPackage,
+    const { error } = await storyService.updateStory(story.id, userId, {
+      story_content: generatedStory,
+      learning_package: learningPackage as unknown as Json,
+      generation_status: 'generated',
+      generated_at: generatedAt,
+    })
 
-  storyBook: assets.storyBook,
+    if (error) {
+      throw error
+    }
 
-  narration: assets.narration,
-
+    return {
+      ...story,
+      story_content: generatedStory,
+      learning_package: learningPackage,
+      generation_status: 'generated',
+      generated_at: generatedAt,
+    }
+  }
 }
-}
 
- private async buildStory(story: StoryRecord) {
-  return generateStory(story)
-}
-}
-
-  
-
-export const storyOrchestrator =
-  new StoryOrchestrator()
+export const storyOrchestrator = new StoryOrchestrator()

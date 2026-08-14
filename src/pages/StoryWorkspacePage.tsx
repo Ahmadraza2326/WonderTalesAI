@@ -1,12 +1,11 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { PageContainer } from '../components/ui/PageContainer'
 import { useAuth } from '../context/AuthContext'
 import { storyService } from '../services/storyService'
 import { testGeminiConnection } from '../services/geminiService'
-import { generateStory } from '../services/storyGenerationService'
-import { generateLearningPackage } from '../services/learningPackageGenerationService'
+import { storyOrchestrator } from '../services/StoryOrchestrator'
 import { generateStoryBook } from '../services/storybookGenerator'
 import { generateStoryNarration } from '../services/ai/narrationGenerationService'
 import { storyAssetCacheService } from '../services/storyAssetCacheService'
@@ -37,7 +36,7 @@ function formatDate(value: string | null | undefined) {
 export function StoryWorkspacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isLoading: isAuthLoading } = useAuth()
 
   const [story, setStory] = useState<StoryRecord | null>(null)
   const [storyBook, setStoryBook] = useState<StoryBook | null>(null)
@@ -52,22 +51,13 @@ export function StoryWorkspacePage() {
   const [geminiResult, setGeminiResult] = useState<string | null>(null)
   const [geminiError, setGeminiError] = useState<string | null>(null)
   const [narration, setNarration] = useState<StoryNarration | null>(null)
-  const [, setShowStoryBookMenu] = useState(false)
-  const [, setShowNarrationMenu] = useState(false)
-
-  // ... (inside component)
-  // Close menus when clicking elsewhere
-  useEffect(() => {
-    function handleClickOutside() {
-      setShowStoryBookMenu(false)
-      setShowNarrationMenu(false)
-    }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [])
 
   useEffect(() => {
     async function loadStory() {
+      if (isAuthLoading) {
+        return
+      }
+
       if (!id) {
         setErrorMessage('Story ID is missing from the URL.')
         setIsLoading(false)
@@ -123,7 +113,7 @@ export function StoryWorkspacePage() {
     }
 
     void loadStory()
-  }, [id, navigate, user])
+  }, [id, navigate, user, isAuthLoading])
 
   async function handleGenerateStoryBook(force = false) {
     if (!story || !user) return
@@ -203,53 +193,33 @@ export function StoryWorkspacePage() {
     }
   }
 
-async function handleGenerateLearningPackage() {
-  if (!story || !user) {
-    return
-  }
-
-  setIsGeneratingLearningPackage(true)
-  setErrorMessage(null)
-  setSuccessMessage(null)
-
-  try {
-    const generatedStory = await generateStory(story)
-    const learningPackage = await generateLearningPackage(story)
-    const generatedAt = new Date().toISOString()
-
-    const { error } = await storyService.updateStory(story.id, user.id, {
-      story_content: generatedStory,
-      learning_package: learningPackage as any,
-      generation_status: 'generated',
-      generated_at: generatedAt,
-    })
-
-    if (error) {
-      throw error
+  async function handleGenerateLearningPackage() {
+    if (!story || !user) {
+      return
     }
 
-    const updatedStory: StoryRecord = {
-      ...story,
-      story_content: generatedStory,
-      learning_package: learningPackage,
-      generation_status: 'generated',
-      generated_at: generatedAt,
+    setIsGeneratingLearningPackage(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+
+    try {
+      const updatedStory = await storyOrchestrator.generateLearningPackage(
+        story,
+        user.id
+      )
+
+      setStory(updatedStory)
+      setSuccessMessage('Story and learning package generated successfully.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate and save the Learning Package.'
+      )
+    } finally {
+      setIsGeneratingLearningPackage(false)
     }
-
-    setStory(updatedStory)
-
-    setSuccessMessage('Story and learning package generated successfully.')
-  } catch (error) {
-    setErrorMessage(
-      error instanceof Error
-        ? error.message
-        : 'Failed to generate and save the Learning Package.'
-    )
-  } finally {
-    setIsGeneratingLearningPackage(false)
   }
-}
-
 
   return (
     <PageContainer
@@ -264,14 +234,14 @@ async function handleGenerateLearningPackage() {
         <p className="form-status success">{successMessage}</p>
       ) : null}
 
-      {isLoading ? (
+      {isAuthLoading || isLoading ? (
         <div className="loading-state">
           <LoadingSpinner />
           <p>Loading story details…</p>
         </div>
       ) : null}
 
-      {!isLoading && !errorMessage && story ? (
+      {!isAuthLoading && !isLoading && !errorMessage && story ? (
         <div className="story-workspace">
           <section className="story-metadata card-panel">
             <div className="story-metadata__header">
@@ -362,8 +332,8 @@ async function handleGenerateLearningPackage() {
                     {isGeneratingStoryBook
                       ? 'Processing...'
                       : storyBook
-                      ? 'Open StoryBook'
-                      : 'Create StoryBook'}
+                        ? 'Open StoryBook'
+                        : 'Create StoryBook'}
                   </button>
                   <button
                     type="button"
@@ -386,8 +356,8 @@ async function handleGenerateLearningPackage() {
                     {isGeneratingNarration
                       ? 'Processing...'
                       : narration
-                      ? 'Listen to Story'
-                      : 'Create Narration'}
+                        ? 'Listen to Story'
+                        : 'Create Narration'}
                   </button>
                   <button
                     type="button"
@@ -435,13 +405,6 @@ async function handleGenerateLearningPackage() {
               {geminiError ? (
                 <p className="form-status error">{geminiError}</p>
               ) : null}
-            </div>
-          </section>
-
-          <section className="story-placeholders">
-            <div className="placeholder-card card-panel">
-              <h3>Narration</h3>
-              <p>Coming Soon</p>
             </div>
           </section>
         </div>

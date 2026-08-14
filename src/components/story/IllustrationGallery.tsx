@@ -1,4 +1,5 @@
 import type { StoryRecord } from '../../types/story'
+import type { IllustrationPrompt } from '../../services/ai/learningPackage'
 
 interface IllustrationGalleryProps {
   story: StoryRecord
@@ -7,13 +8,9 @@ interface IllustrationGalleryProps {
 export function IllustrationGallery({
   story,
 }: IllustrationGalleryProps) {
-  const illustrations =
-    story.learning_package?.illustrations
+  const illustrations = story.learning_package?.illustrations
 
-  if (
-    !illustrations ||
-    illustrations.length === 0
-  ) {
+  if (!illustrations || !Array.isArray(illustrations) || illustrations.length === 0) {
     return null
   }
 
@@ -22,28 +19,25 @@ export function IllustrationGallery({
       <h3>🖼️ Illustration Gallery</h3>
 
       {illustrations.map(
-        (
-          illustration: {
-            scene: number
-            prompt: string
-          },
-          index: number
-        ) => (
-          <div
-            key={index}
-            style={{
-              marginBottom: '1rem',
-              paddingBottom: '1rem',
-              borderBottom: '1px solid #ddd',
-            }}
-          >
-            <h4>
-              Scene {illustration.scene}
-            </h4>
+        (illustration: IllustrationPrompt, index: number) => {
+          const sceneNumber = typeof illustration.scene === 'number' ? illustration.scene : index + 1
+          const promptText = illustration.prompt ?? ''
 
-            <p>{illustration.prompt}</p>
-          </div>
-        )
+          return (
+            <div
+              key={index}
+              style={{
+                marginBottom: index === illustrations.length - 1 ? 0 : '1rem',
+                paddingBottom: index === illustrations.length - 1 ? 0 : '1rem',
+                borderBottom: index === illustrations.length - 1 ? 'none' : '1px solid var(--border, #ddd)',
+              }}
+            >
+              <h4>Scene {sceneNumber}</h4>
+
+              {promptText ? <p>{promptText}</p> : null}
+            </div>
+          )
+        }
       )}
     </section>
   )

@@ -1,4 +1,5 @@
 import type { StoryRecord } from '../../types/story'
+import type { LifeSkill } from '../../services/ai/learningPackage'
 
 interface LifeSkillsSectionProps {
   story: StoryRecord
@@ -7,8 +8,7 @@ interface LifeSkillsSectionProps {
 export function LifeSkillsSection({
   story,
 }: LifeSkillsSectionProps) {
-  const lifeSkills =
-    story.learning_package?.lifeSkills
+  const lifeSkills = story.learning_package?.lifeSkills
 
   if (!lifeSkills || lifeSkills.length === 0) {
     return null
@@ -19,16 +19,16 @@ export function LifeSkillsSection({
       <h3>🌱 Life Skills</h3>
 
       {lifeSkills.map(
-        (skill: any, index: number) => (
+        (skill: LifeSkill, index: number) => (
           <div
             key={index}
             style={{
-              marginBottom: '1rem',
+              marginBottom: index === lifeSkills.length - 1 ? 0 : '1rem',
             }}
           >
             <h4>{skill.skill}</h4>
 
-            <p>{skill.description}</p>
+            {skill.explanation ? <p>{skill.explanation}</p> : null}
           </div>
         )
       )}

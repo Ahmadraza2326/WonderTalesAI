@@ -36,16 +36,22 @@ async function getHash(story: StoryRecord, assetType: 'storybook' | 'narration')
   return contentHash(`${assetType}:v1:${storySource(story)}`)
 }
 
-async function createSignedUrl(path: string) {
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .createSignedUrl(path, 60 * 60)
+async function createSignedUrl(path: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(path, 60 * 60)
 
-  if (error || !data?.signedUrl) {
-    throw error ?? new Error('Unable to read the saved StoryBook image.')
+    if (error || !data?.signedUrl) {
+      console.warn(`[storyAssetCacheService] Unable to create signed URL for path "${path}":`, error)
+      return null
+    }
+
+    return data.signedUrl
+  } catch (err) {
+    console.warn(`[storyAssetCacheService] Failed to create signed URL for path "${path}":`, err)
+    return null
   }
-
-  return data.signedUrl
 }
 
 async function dataUrlToBlob(dataUrl: string) {
@@ -76,13 +82,21 @@ export const storyAssetCacheService = {
     if (!data) return null
 
     const savedStoryBook = data.payload as unknown as StoredStoryBook
-    const pages = await Promise.all(savedStoryBook.pages.map(async page => ({
-      pageNumber: page.pageNumber,
-      text: page.text,
-      illustrationPrompt: page.illustrationPrompt ?? null,
-      illustrationUrl: page.illustrationPath ? await createSignedUrl(page.illustrationPath) : null,
-      narrationUrl: page.narrationUrl ?? null,
-    })))
+    const pages = await Promise.all(savedStoryBook.pages.map(async page => {
+      let illustrationUrl: string | null = null
+
+      if (page.illustrationPath) {
+        illustrationUrl = await createSignedUrl(page.illustrationPath)
+      }
+
+      return {
+        pageNumber: page.pageNumber,
+        text: page.text,
+        illustrationPrompt: page.illustrationPrompt ?? null,
+        illustrationUrl,
+        narrationUrl: page.narrationUrl ?? null,
+      }
+    }))
 
     return { title: savedStoryBook.title, pages }
   },
