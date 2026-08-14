@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { StoryRecord } from '../../types/story'
 import type { IllustrationPrompt } from '../../services/ai/learningPackage'
 
@@ -5,7 +6,7 @@ interface IllustrationGalleryProps {
   story: StoryRecord
 }
 
-export function IllustrationGallery({
+export const IllustrationGallery = memo(function IllustrationGallery({
   story,
 }: IllustrationGalleryProps) {
   const illustrations = story.learning_package?.illustrations
@@ -41,4 +42,4 @@ export function IllustrationGallery({
       )}
     </section>
   )
-}
+})

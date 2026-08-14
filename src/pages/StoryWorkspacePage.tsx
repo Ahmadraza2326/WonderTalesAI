@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { PageContainer } from '../components/ui/PageContainer'
@@ -33,11 +33,14 @@ function formatDate(value: string | null | undefined) {
   })
 }
 
+type WorkspaceTab = 'reading' | 'learning' | 'tools'
+
 export function StoryWorkspacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user, isLoading: isAuthLoading } = useAuth()
 
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('reading')
   const [story, setStory] = useState<StoryRecord | null>(null)
   const [storyBook, setStoryBook] = useState<StoryBook | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -100,7 +103,6 @@ export function StoryWorkspacePage() {
         } catch (assetError) {
           console.error('Unable to load saved story assets:', assetError)
         }
-
       } catch (error) {
         setErrorMessage(
           error instanceof Error
@@ -115,26 +117,35 @@ export function StoryWorkspacePage() {
     void loadStory()
   }, [id, navigate, user, isAuthLoading])
 
-  async function handleGenerateStoryBook(force = false) {
+  const handleGenerateStoryBook = useCallback(async (force = false) => {
     if (!story || !user) return
     setIsGeneratingStoryBook(true)
     setErrorMessage(null)
     setSuccessMessage(null)
     try {
       if (!force) {
-        const cachedStoryBook = await storyAssetCacheService.getStoryBook(story, user.id)
+        const cachedStoryBook = await storyAssetCacheService.getStoryBook(
+          story,
+          user.id
+        )
 
         if (cachedStoryBook) {
           setStoryBook(cachedStoryBook)
-          setSuccessMessage('Loaded your saved StoryBook. No images were regenerated.')
+          setSuccessMessage('Loaded saved StoryBook. Ready for reading!')
           return
         }
       }
 
       const generatedStoryBook = await generateStoryBook(story)
-      await storyAssetCacheService.saveStoryBook(story, user.id, generatedStoryBook)
+      await storyAssetCacheService.saveStoryBook(
+        story,
+        user.id,
+        generatedStoryBook
+      )
       setStoryBook(generatedStoryBook)
-      setSuccessMessage(`StoryBook ${force ? 'regenerated' : 'generated'} and saved for future visits.`)
+      setSuccessMessage(
+        `StoryBook ${force ? 'regenerated' : 'generated'} and saved for future visits.`
+      )
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to generate StoryBook.'
@@ -142,38 +153,49 @@ export function StoryWorkspacePage() {
     } finally {
       setIsGeneratingStoryBook(false)
     }
-  }
+  }, [story, user])
 
-  async function handleGenerateNarration(force = false) {
+  const handleGenerateNarration = useCallback(async (force = false) => {
     if (!story || !user) return
     setIsGeneratingNarration(true)
     setErrorMessage(null)
     setSuccessMessage(null)
     try {
       if (!force) {
-        const cachedNarration = await storyAssetCacheService.getNarration(story, user.id)
+        const cachedNarration = await storyAssetCacheService.getNarration(
+          story,
+          user.id
+        )
 
         if (cachedNarration) {
           setNarration(cachedNarration)
-          setSuccessMessage('Loaded your saved narration. No narration was regenerated.')
+          setSuccessMessage('Loaded saved narration audio.')
           return
         }
       }
 
       const generatedNarration = await generateStoryNarration(story)
-      await storyAssetCacheService.saveNarration(story, user.id, generatedNarration)
+      await storyAssetCacheService.saveNarration(
+        story,
+        user.id,
+        generatedNarration
+      )
       setNarration(generatedNarration)
-      setSuccessMessage(`Narration ${force ? 'regenerated' : 'generated'} and saved for future visits.`)
+      setSuccessMessage(
+        `Narration ${force ? 'regenerated' : 'generated'} and saved for future visits.`
+      )
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Failed to generate narration.'
+        error instanceof Error
+          ? error.message
+          : 'Failed to generate narration audio.'
       )
     } finally {
       setIsGeneratingNarration(false)
     }
-  }
+  }, [story, user])
 
-  async function handleTestGeminiConnection() {
+  const handleTestGeminiConnection = useCallback(async () => {
     setIsTestingGemini(true)
     setGeminiError(null)
     setGeminiResult(null)
@@ -184,17 +206,15 @@ export function StoryWorkspacePage() {
       setGeminiResult(responseText)
     } catch (error) {
       setGeminiError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to reach Gemini.'
+        error instanceof Error ? error.message : 'Unable to reach Gemini.'
       )
     } finally {
       setIsTestingGemini(false)
     }
-  }
+  }, [])
 
-  async function handleGenerateLearningPackage() {
-    if (!story || !user) {
+  const handleGenerateLearningPackage = useCallback(async () => {
+    if (!story || !user || isGeneratingLearningPackage) {
       return
     }
 
@@ -209,204 +229,416 @@ export function StoryWorkspacePage() {
       )
 
       setStory(updatedStory)
-      setSuccessMessage('Story and learning package generated successfully.')
+      setSuccessMessage(
+        'Story and learning package woven successfully! Your tale is now alive.'
+      )
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Failed to generate and save the Learning Package.'
+          : 'Failed to generate the story package.'
       )
+      setStory(prev => (prev ? { ...prev, generation_status: 'failed' } : null))
     } finally {
       setIsGeneratingLearningPackage(false)
     }
-  }
+  }, [story, user, isGeneratingLearningPackage])
+
 
   return (
     <PageContainer
-      title="Story Workspace"
-      intro="View your story metadata and generated story content."
+      title={story?.title ?? 'ORBIS Story Studio'}
+      intro="Your personalized storytelling studio, digital storybook, and learning adventure."
     >
+      {/* Workspace Top Toolbar */}
+      <div className="workspace-header-bar">
+        <button
+          type="button"
+          className="button button-secondary workspace-back-btn"
+          onClick={() => navigate('/stories')}
+          aria-label="Back to all stories"
+        >
+          ← Back to Stories
+        </button>
+
+        {story ? (
+          <div className="workspace-header-tags">
+            <span className={`card-pill ${story.learning_package || story.generation_status === 'ready' ? 'card-pill--active' : ''}`}>
+              {story.learning_package || story.generation_status === 'ready'
+                ? '🌟 Story Live'
+                : story.generation_status === 'failed'
+                  ? '⚠️ Failed'
+                  : 'Draft'}
+            </span>
+            {story.reading_level ? (
+              <span className="card-pill card-pill--level">
+                {story.reading_level}
+              </span>
+            ) : null}
+            {story.child_name ? (
+              <span className="card-pill card-pill--name">
+                👤 {story.child_name} {story.child_age ? `(${story.child_age} yrs)` : ''}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Cinematic Story Studio Banner */}
+      {story ? (
+        <div className="workspace-hero-cover card-panel">
+          <div className="hero-cover-details">
+            <span className="hero-cover-badge">ORBIS Story Studio • By DINARYX</span>
+            <h2 className="hero-cover-title">{story.title}</h2>
+            <div className="hero-cover-meta">
+              {story.theme ? <span>🏰 {story.theme}</span> : null}
+              {story.moral ? <span>❤️ {story.moral}</span> : null}
+              {story.language ? <span>🌐 {story.language}</span> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {errorMessage ? (
-        <p className="form-status error">{errorMessage}</p>
+        <div className="form-status error" role="alert">
+          ⚠️ {errorMessage}
+        </div>
       ) : null}
 
       {successMessage ? (
-        <p className="form-status success">{successMessage}</p>
+        <div className="form-status success" role="status">
+          ✨ {successMessage}
+        </div>
       ) : null}
 
       {isAuthLoading || isLoading ? (
         <div className="loading-state">
           <LoadingSpinner />
-          <p>Loading story details…</p>
+          <p>Opening ORBIS story studio…</p>
+        </div>
+      ) : null}
+
+      {/* Deterministic Starry Generation Loading State */}
+      {isGeneratingLearningPackage ? (
+        <div className="card-panel workspace-generating-card" aria-live="polite">
+          <div className="generating-header">
+            <span className="generating-icon" aria-hidden="true">🪐</span>
+            <div>
+              <h3>Orbis AI is Weaving Your Tale…</h3>
+              <p>Crafting story narrative, character dialogue, quizzes, and learning package.</p>
+            </div>
+          </div>
+          <div className="generating-steps">
+            <div className="generating-step active">
+              <span className="step-dot" />
+              <span>1. Character & Narrative Weaving</span>
+            </div>
+            <div className="generating-step active">
+              <span className="step-dot" />
+              <span>2. Life Skills & Educational Reflections</span>
+            </div>
+            <div className="generating-step active">
+              <span className="step-dot" />
+              <span>3. Story DNA & Comprehension Quizzes</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Failed Generation State Banner with Retry CTA */}
+      {!isLoading && !isGeneratingLearningPackage && story && !story.learning_package && story.generation_status === 'failed' ? (
+        <div className="card-panel workspace-failed-banner" role="alert">
+          <div className="failed-banner-content">
+            <span className="failed-banner-icon" aria-hidden="true">⚠️</span>
+            <div>
+              <h3>Story Weaving Incomplete</h3>
+              <p>
+                The previous generation could not be completed (e.g. network timeout or service interruption). You can retry weaving your tale without losing your characters or world settings.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="button button-primary failed-retry-btn"
+            onClick={handleGenerateLearningPackage}
+            disabled={isGeneratingLearningPackage}
+          >
+            🔄 Retry Weaving Story
+          </button>
+        </div>
+      ) : null}
+
+      {/* Draft State CTA Banner (when story has not been generated yet and not failed) */}
+      {!isLoading && !isGeneratingLearningPackage && story && !story.learning_package && story.generation_status !== 'failed' ? (
+        <div className="card-panel workspace-draft-banner">
+          <div className="draft-banner-content">
+            <span className="draft-banner-icon" aria-hidden="true">✨</span>
+            <div>
+              <h3>Your Story Draft is Ready to Come Alive</h3>
+              <p>
+                Generate the complete story narrative, illustrated storybook, quizzes, and narration with Orbis AI.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="button button-primary draft-generate-btn"
+            onClick={handleGenerateLearningPackage}
+            disabled={isGeneratingLearningPackage}
+          >
+            ✨ Weave Story & Learning Adventure
+          </button>
         </div>
       ) : null}
 
       {!isAuthLoading && !isLoading && !errorMessage && story ? (
         <div className="story-workspace">
-          <section className="story-metadata card-panel">
-            <div className="story-metadata__header">
-              <h2>{story.title}</h2>
-              <p className="card-pill">{story.status ?? 'draft'}</p>
-            </div>
+          {/* Workspace Tab Navigation */}
+          <nav className="workspace-tabs" aria-label="Workspace views">
+            <button
+              type="button"
+              className={`workspace-tab-btn ${activeTab === 'reading' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reading')}
+              aria-selected={activeTab === 'reading'}
+            >
+              📖 Reading & Audio
+            </button>
+            <button
+              type="button"
+              className={`workspace-tab-btn ${activeTab === 'learning' ? 'active' : ''}`}
+              onClick={() => setActiveTab('learning')}
+              aria-selected={activeTab === 'learning'}
+            >
+              💡 Learning & Quiz
+            </button>
+            <button
+              type="button"
+              className={`workspace-tab-btn ${activeTab === 'tools' ? 'active' : ''}`}
+              onClick={() => setActiveTab('tools')}
+              aria-selected={activeTab === 'tools'}
+            >
+              ⚙️ Studio Tools
+            </button>
+          </nav>
 
-            <dl className="story-metadata__details">
-              <div>
-                <dt>Child Name</dt>
-                <dd>{story.child_name ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Child Age</dt>
-                <dd>{story.child_age ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Language</dt>
-                <dd>{story.language ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Theme</dt>
-                <dd>{story.theme ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Moral</dt>
-                <dd>{story.moral ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Characters</dt>
-                <dd>{story.characters ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Story Length</dt>
-                <dd>{story.story_length ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Reading Level</dt>
-                <dd>{story.reading_level ?? '—'}</dd>
-              </div>
-
-              <div>
-                <dt>Generation Status</dt>
-                <dd>{story.generation_status ?? 'pending'}</dd>
-              </div>
-
-              <div>
-                <dt>Generated At</dt>
-                <dd>{formatDate(story.generated_at)}</dd>
-              </div>
-
-              <div>
-                <dt>Created Date</dt>
-                <dd>{formatDate(story.created_at)}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="story-main card-panel">
-            <div className="story-main__header">
-              <h3>Story</h3>
-              <div className="story-main__actions">
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={handleGenerateLearningPackage}
-                  disabled={isGeneratingLearningPackage}
-                >
-                  {isGeneratingLearningPackage
-                    ? 'Generating Learning Package...'
-                    : 'Generate Learning Package'}
-                </button>
-
-                <div className="action-group" style={{ display: 'flex', gap: '0.25rem' }}>
+          {/* TAB 1: READING & AUDIO */}
+          {activeTab === 'reading' ? (
+            <div className="workspace-tab-content">
+              {storyBook ? (
+                <StoryBookViewer storyBook={storyBook} />
+              ) : (
+                <div className="card-panel storybook-prompt-card">
+                  <div className="storybook-prompt-card__content">
+                    <span className="storybook-prompt-card__icon" aria-hidden="true">
+                      🎨
+                    </span>
+                    <h3>Illustrated Digital Storybook</h3>
+                    <p>
+                      Transform this story into an illustrated multi-page storybook with turn-page animations and visuals.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    className="button button-secondary"
+                    className="button button-primary"
                     onClick={() => handleGenerateStoryBook(false)}
                     disabled={isGeneratingStoryBook}
                   >
                     {isGeneratingStoryBook
-                      ? 'Processing...'
-                      : storyBook
-                        ? 'Open StoryBook'
-                        : 'Create StoryBook'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={() => handleGenerateStoryBook(true)}
-                    disabled={isGeneratingStoryBook}
-                    title="Regenerate StoryBook"
-                  >
-                    …
+                      ? 'Creating StoryBook…'
+                      : '✨ Create Illustrated StoryBook'}
                   </button>
                 </div>
+              )}
 
-                <div className="action-group" style={{ display: 'flex', gap: '0.25rem' }}>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={() => handleGenerateNarration(false)}
-                    disabled={isGeneratingNarration}
-                  >
-                    {isGeneratingNarration
-                      ? 'Processing...'
-                      : narration
-                        ? 'Listen to Story'
-                        : 'Create Narration'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    onClick={() => handleGenerateNarration(true)}
-                    disabled={isGeneratingNarration}
-                    title="Regenerate Narration"
-                  >
-                    …
-                  </button>
-                </div>
-
-                <button type="button" className="button button-secondary" disabled>
-                  Edit Story
-                </button>
-
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={handleTestGeminiConnection}
-                  disabled={isTestingGemini}
-                >
-                  {isTestingGemini ? 'Testing Gemini...' : 'Test Gemini Connection'}
-                </button>
-
-                <button
-                  type="button"
-                  className="button button-primary"
-                  onClick={() => navigate('/stories')}
-                >
-                  Back to My Stories
-                </button>
-              </div>
+              {/* Story Narrative, Narration & Illustrations */}
+              <StoryViewer story={story} narration={narration} mode="reading" />
             </div>
+          ) : null}
 
-            <StoryViewer story={story} narration={narration} />
-            {story && storyBook ? (
-              <StoryBookViewer storyBook={storyBook} />
-            ) : null}
+          {/* TAB 2: LEARNING & QUIZ */}
+          {activeTab === 'learning' ? (
+            <div className="workspace-tab-content">
+              {!story.learning_package ? (
+                <div className="card-panel learning-prompt-card">
+                  <span className="learning-prompt-card__icon" aria-hidden="true">
+                    🧩
+                  </span>
+                  <h3>Learning Package Not Generated Yet</h3>
+                  <p>
+                    Generate comprehension quizzes, critical thinking challenges, life skills reflections, and Story DNA with our single-call pipeline.
+                  </p>
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={handleGenerateLearningPackage}
+                    disabled={isGeneratingLearningPackage}
+                  >
+                    {isGeneratingLearningPackage
+                      ? 'Generating Learning Package…'
+                      : '✨ Generate Learning Package'}
+                  </button>
+                </div>
+              ) : (
+                <StoryViewer story={story} narration={narration} mode="learning" />
+              )}
+            </div>
+          ) : null}
 
-            <div className="card-panel" style={{ marginTop: '1rem' }}>
-              <h4>Gemini Connection Test</h4>
-              {isTestingGemini ? <p>Waiting for Gemini response…</p> : null}
-              {geminiResult ? <p>{geminiResult}</p> : null}
-              {geminiError ? (
-                <p className="form-status error">{geminiError}</p>
+          {/* TAB 3: STUDIO TOOLS & METADATA */}
+          {activeTab === 'tools' ? (
+            <div className="workspace-tab-content workspace-tools-view">
+              {/* Story Generation Actions */}
+              <section className="card-panel tools-action-card" aria-labelledby="tools-heading">
+                <h3 id="tools-heading">AI Story Studio Generators</h3>
+                <p className="text-muted">
+                  Generate or refresh AI assets for this story.
+                </p>
+
+                <div className="tools-button-grid">
+                  <button
+                    type="button"
+                    className="button button-secondary tool-btn"
+                    onClick={handleGenerateLearningPackage}
+                    disabled={isGeneratingLearningPackage}
+                  >
+                    {isGeneratingLearningPackage ? (
+                      <>
+                        <span className="button-spinner" aria-hidden="true" />
+                        <span>Generating Package…</span>
+                      </>
+                    ) : (
+                      '✨ Generate Learning Package'
+                    )}
+                  </button>
+
+                  <div className="tool-btn-group">
+                    <button
+                      type="button"
+                      className="button button-secondary tool-btn"
+                      onClick={() => handleGenerateStoryBook(false)}
+                      disabled={isGeneratingStoryBook}
+                    >
+                      {isGeneratingStoryBook
+                        ? 'Creating StoryBook…'
+                        : storyBook
+                          ? '📖 Open StoryBook'
+                          : '🎨 Create StoryBook'}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary tool-sub-btn"
+                      onClick={() => handleGenerateStoryBook(true)}
+                      disabled={isGeneratingStoryBook}
+                      title="Regenerate StoryBook"
+                      aria-label="Regenerate StoryBook"
+                    >
+                      🔄
+                    </button>
+                  </div>
+
+                  <div className="tool-btn-group">
+                    <button
+                      type="button"
+                      className="button button-secondary tool-btn"
+                      onClick={() => handleGenerateNarration(false)}
+                      disabled={isGeneratingNarration}
+                    >
+                      {isGeneratingNarration
+                        ? 'Creating Narration…'
+                        : narration
+                          ? '🎙️ Listen Narration'
+                          : '🎙️ Create Narration'}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary tool-sub-btn"
+                      onClick={() => handleGenerateNarration(true)}
+                      disabled={isGeneratingNarration}
+                      title="Regenerate Narration"
+                      aria-label="Regenerate Narration"
+                    >
+                      🔄
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="button button-secondary tool-btn"
+                    onClick={handleTestGeminiConnection}
+                    disabled={isTestingGemini}
+                  >
+                    {isTestingGemini ? 'Testing Gemini API…' : '⚡ Test Gemini API'}
+                  </button>
+                </div>
+              </section>
+
+              {/* Gemini Connection Status Output */}
+              {geminiResult || geminiError ? (
+                <div className="card-panel gemini-test-card" role="status">
+                  <h4>Gemini Diagnostic Output</h4>
+                  {geminiResult ? <p className="success-text">{geminiResult}</p> : null}
+                  {geminiError ? <p className="form-status error">{geminiError}</p> : null}
+                </div>
               ) : null}
+
+              {/* Story Metadata Details */}
+              <section className="story-metadata card-panel" aria-labelledby="meta-heading">
+                <h3 id="meta-heading">Story Configuration</h3>
+
+                <dl className="story-metadata__details">
+                  <div>
+                    <dt>Child Name</dt>
+                    <dd>{story.child_name ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Child Age</dt>
+                    <dd>{story.child_age ? `${story.child_age} yrs` : '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Language</dt>
+                    <dd>{story.language ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Theme</dt>
+                    <dd>{story.theme ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Moral Lesson</dt>
+                    <dd>{story.moral ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Characters</dt>
+                    <dd>{story.characters ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Story Length</dt>
+                    <dd>{story.story_length ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Reading Level</dt>
+                    <dd>{story.reading_level ?? '—'}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Created Date</dt>
+                    <dd>{formatDate(story.created_at)}</dd>
+                  </div>
+
+                  <div>
+                    <dt>Last Generated</dt>
+                    <dd>{formatDate(story.generated_at)}</dd>
+                  </div>
+                </dl>
+              </section>
             </div>
-          </section>
+          ) : null}
         </div>
       ) : null}
     </PageContainer>

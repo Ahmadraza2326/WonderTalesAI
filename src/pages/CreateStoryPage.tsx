@@ -1,21 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
-import { StoryForm } from '../components/ui/StoryForm'
+import { StoryForm, type StoryFormValues } from '../components/ui/StoryForm'
 import { useAuth } from '../context/AuthContext'
 import { storyService } from '../services/storyService'
-
-type StoryFormValues = {
-  title: string
-  childName: string
-  childAge: string
-  language: string
-  theme: string
-  moral: string
-  characters: string
-  storyLength: string
-  readingLevel: string
-}
 
 export function CreateStoryPage() {
   const navigate = useNavigate()
@@ -35,7 +23,7 @@ export function CreateStoryPage() {
       return
     }
 
-    const { error } = await storyService.createStory(user.id, values)
+    const { data, error } = await storyService.createStory(user.id, values)
 
     if (error) {
       setErrorMessage(error.message)
@@ -43,15 +31,27 @@ export function CreateStoryPage() {
       return
     }
 
-    setSuccessMessage('Story saved successfully.')
+    setSuccessMessage('Story draft created successfully!')
     setIsSubmitting(false)
-    navigate('/stories', { replace: true })
+
+    if (data?.id) {
+      navigate(`/stories/${data.id}`)
+    } else {
+      navigate('/stories', { replace: true })
+    }
   }
 
-
   return (
-    <PageContainer title="Create Story" intro="Create a personalized story draft for your child and save it to your workspace.">
-      <StoryForm onSubmit={handleSubmit} isSubmitting={isSubmitting} successMessage={successMessage} errorMessage={errorMessage} />
+    <PageContainer
+      title="ORBIS Story Studio"
+      intro="Create a personalized tale for your child with our guided storytelling wizard."
+    >
+      <StoryForm
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+      />
     </PageContainer>
   )
 }

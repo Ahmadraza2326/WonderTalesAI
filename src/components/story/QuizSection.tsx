@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { StoryRecord } from '../../types/story'
 import type { QuizSeed } from '../../services/ai/learningPackage'
 
@@ -6,7 +6,7 @@ interface QuizSectionProps {
   story: StoryRecord
 }
 
-export function QuizSection({
+export const QuizSection = memo(function QuizSection({
   story,
 }: QuizSectionProps) {
   const quiz = story.learning_package?.quizSeeds
@@ -274,4 +274,4 @@ export function QuizSection({
       )}
     </section>
   )
-}
+})

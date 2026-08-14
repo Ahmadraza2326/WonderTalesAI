@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Header } from './Header'
 import { Footer } from './Footer'
+import { MobileBottomNav } from './MobileBottomNav'
 
 type AppShellProps = {
   children: ReactNode
@@ -19,6 +20,7 @@ export function AppShell({ children, theme, toggleTheme }: AppShellProps) {
         {children}
       </main>
       <Footer />
+      <MobileBottomNav />
     </div>
   )
 }

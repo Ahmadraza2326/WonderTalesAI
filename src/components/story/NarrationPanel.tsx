@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { AudioPlayer } from './AudioPlayer'
 import { AudioController } from '../../services/audio/audioController'
 import type { StoryNarration } from '../../types/narration'
@@ -7,7 +7,7 @@ interface NarrationPanelProps {
   narration: StoryNarration | null
 }
 
-export function NarrationPanel({
+export const NarrationPanel = memo(function NarrationPanel({
   narration,
 }: NarrationPanelProps) {
   const [currentSegment, setCurrentSegment] = useState(0)
@@ -198,4 +198,4 @@ export function NarrationPanel({
       </div>
     </section>
   )
-}
+})

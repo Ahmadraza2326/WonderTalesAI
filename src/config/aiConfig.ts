@@ -33,14 +33,14 @@ function readNumberEnv(name: string): number | undefined {
 
 function normalizeConfig(): AIConfig {
 
-const geminiApiKey =
-  readEnv('VITE_GEMINI_API_KEY')
+  // In production, Gemini generation is routed via Supabase Edge Function with server-side secrets.
+  const geminiApiKey = undefined
 
-const geminiTimeoutMs =
-  readNumberEnv('VITE_GEMINI_TIMEOUT_MS') ?? 30000
+  const geminiTimeoutMs =
+    readNumberEnv('VITE_GEMINI_TIMEOUT_MS') ?? 30000
 
-const geminiBaseUrl =
-  readEnv('VITE_GEMINI_BASE_URL')
+  const geminiBaseUrl =
+    readEnv('VITE_GEMINI_BASE_URL')
 
   return {
     gemini: {

@@ -2,11 +2,15 @@ import type { StoryRecord } from '../types/story'
 import type { Json } from '../types/database.types'
 import { assetEngine } from './AssetEngine'
 import { storyService } from './storyService'
+import { quotaService } from './quotaService'
 import {
   generateLearningPackage as generateLearningPackageService,
 } from './learningPackageGenerationService'
+import { classifyGenerationError } from './ai/errors'
 
 export class StoryOrchestrator {
+  private activeGenerations = new Map<string, number>()
+
   async generate(story: StoryRecord) {
     const learningPackage = await generateLearningPackageService(story)
     const generatedStory = learningPackage.story
@@ -32,27 +36,69 @@ export class StoryOrchestrator {
     story: StoryRecord,
     userId: string
   ): Promise<StoryRecord> {
-    const learningPackage = await generateLearningPackageService(story)
-    const generatedStory = learningPackage.story
-    const generatedAt = new Date().toISOString()
+    // 1. Atomic server-side quota and cooldown check
+    await quotaService.consumeQuota()
 
-    const { error } = await storyService.updateStory(story.id, userId, {
-      story_content: generatedStory,
-      learning_package: learningPackage as unknown as Json,
-      generation_status: 'generated',
-      generated_at: generatedAt,
+    // 2. Generation attempt version lock (prevents late promises from race condition)
+    const currentVersion = (this.activeGenerations.get(story.id) ?? 0) + 1
+    this.activeGenerations.set(story.id, currentVersion)
+
+    // 3. Mark generation as in-progress in database
+    await storyService.updateStory(story.id, userId, {
+      generation_status: 'generating',
     })
 
-    if (error) {
-      throw error
-    }
+    try {
+      // 4. Perform the single AI generation call
+      const learningPackage = await generateLearningPackageService(story)
 
-    return {
-      ...story,
-      story_content: generatedStory,
-      learning_package: learningPackage,
-      generation_status: 'generated',
-      generated_at: generatedAt,
+      // Guard: discard if a newer retry generation was started
+      if (this.activeGenerations.get(story.id) !== currentVersion) {
+        throw new Error('Superseded by a newer generation attempt.')
+      }
+
+      const generatedStory = learningPackage.story
+      const generatedAt = new Date().toISOString()
+
+      // 5. Mark generation as ready with generated content
+      const { error } = await storyService.updateStory(story.id, userId, {
+        story_content: generatedStory,
+        learning_package: learningPackage as unknown as Json,
+        generation_status: 'ready',
+        status: 'ready',
+        generated_at: generatedAt,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      return {
+        ...story,
+        story_content: generatedStory,
+        learning_package: learningPackage,
+        generation_status: 'ready',
+        status: 'ready',
+        generated_at: generatedAt,
+      }
+    } catch (error) {
+      // If superseded, don't mark as failed
+      if (this.activeGenerations.get(story.id) !== currentVersion) {
+        throw error
+      }
+
+      const classified = classifyGenerationError(error)
+
+      // 6. Persist failed state to database so reopening /stories/:id doesn't hang
+      try {
+        await storyService.updateStory(story.id, userId, {
+          generation_status: 'failed',
+        })
+      } catch (persistErr) {
+        console.warn('Unable to persist failed generation status to database:', persistErr)
+      }
+
+      throw classified
     }
   }
 }

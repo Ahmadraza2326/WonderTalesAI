@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { EmptyState } from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { storyService } from '../services/storyService'
 import type { StoryRecord } from '../types/story'
 
 export function StoriesPlaceholderPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [stories, setStories] = useState<StoryRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -14,46 +16,37 @@ export function StoriesPlaceholderPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  async function loadStories() {
-    if (!user) {
-      setErrorMessage('Please sign in to view your stories.')
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setErrorMessage(null)
-    setFeedbackMessage(null)
-
-        console.log('Diagnostic: Fetching stories for user:', user.id)
-    const { data, error } = await storyService.getStoriesForUser(user.id)
-
-    if (error) {
-      console.error('Diagnostic: Failed to fetch stories:', error)
-      setErrorMessage('We could not load your stories right now. Please try again.')
-      setIsLoading(false)
-      return
-    }
-
-    console.log('Diagnostic: Successfully fetched', data?.length, 'stories')
-    if (data) {
-      data.forEach((story) => {
-        console.log('Diagnostic: Story ID:', story.id, '| Title:', story.title, '| User ID:', (story as any).user_id, '| Created:', (story as any).created_at)
-      })
-    }
-
-    setStories((data ?? []) as StoryRecord[])
-    setIsLoading(false)
-  }
-
   useEffect(() => {
+    async function loadStories() {
+      if (!user) {
+        setErrorMessage('Please sign in to view your stories.')
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setErrorMessage(null)
+      setFeedbackMessage(null)
+
+      const { data, error } = await storyService.getStoriesForUser(user.id)
+
+      if (error) {
+        setErrorMessage('We could not load your stories right now. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      setStories((data ?? []) as StoryRecord[])
+      setIsLoading(false)
+    }
+
     void loadStories()
   }, [user])
 
   async function handleDelete(storyId: string) {
     if (!user) return
 
-    const confirmed = window.confirm('Delete this story?')
+    const confirmed = window.confirm('Are you sure you want to delete this story?')
     if (!confirmed) {
       return
     }
@@ -70,21 +63,17 @@ export function StoriesPlaceholderPage() {
 
     setStories((currentStories) => currentStories.filter((story) => story.id !== storyId))
     setDeletingId(null)
-  }
-
-
-  function handlePlaceholderAction(action: string) {
-    setFeedbackMessage(`${action} will be available in a future milestone.`)
+    setFeedbackMessage('Story deleted successfully.')
   }
 
   function formatDate(value: string | null | undefined) {
     if (!value) {
-      return '—'
+      return 'Recently'
     }
 
     const parsedDate = new Date(value)
     if (Number.isNaN(parsedDate.getTime())) {
-      return '—'
+      return 'Recently'
     }
 
     return parsedDate.toLocaleDateString('en-US', {
@@ -95,77 +84,108 @@ export function StoriesPlaceholderPage() {
   }
 
   return (
-    <PageContainer title="My Stories" intro="Review, open, edit, or manage your saved story drafts.">
-      {feedbackMessage ? <p className="form-status success">{feedbackMessage}</p> : null}
-      {errorMessage ? <p className="form-status error">{errorMessage}</p> : null}
+    <PageContainer
+      title="My Story Library"
+      intro="Review, read, or manage all the personalized story adventures you've created."
+    >
+      {/* Quick Action Top Bar */}
+      <div className="library-top-bar">
+        <span className="library-count-badge">
+          {stories.length} {stories.length === 1 ? 'Story' : 'Stories'} Saved
+        </span>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={() => navigate('/stories/new')}
+        >
+          ✨ Create New Story
+        </button>
+      </div>
+
+      {feedbackMessage ? (
+        <p className="form-status success" role="status">
+          ✨ {feedbackMessage}
+        </p>
+      ) : null}
+      {errorMessage ? (
+        <p className="form-status error" role="alert">
+          ⚠️ {errorMessage}
+        </p>
+      ) : null}
 
       {isLoading ? (
         <div className="loading-state">
           <LoadingSpinner />
-          <p>Loading your stories…</p>
+          <p>Loading your story library…</p>
         </div>
       ) : null}
 
       {!isLoading && stories.length === 0 ? (
-        <div className="empty-state">
-          <h2>You haven't created any stories yet.</h2>
-          <p>Start your first story draft and it will appear here.</p>
-          <Link to="/stories/new" className="button button-primary">
-            Create Story
-          </Link>
-        </div>
+        <EmptyState
+          icon="📖"
+          title="No stories in your library yet"
+          description="Create your child's first personalized story adventure and it will appear here."
+          action={
+            <Link to="/stories/new" className="button button-primary">
+              ✨ Create Story Adventure
+            </Link>
+          }
+        />
       ) : null}
 
       {!isLoading && stories.length > 0 ? (
         <div className="story-list" role="list">
           {stories.map((story) => (
-            <article className="story-card" key={story.id} role="listitem">
+            <article className="story-card card-panel" key={story.id} role="listitem">
+              <div className="story-card__icon-box" aria-hidden="true">
+                📖
+              </div>
+
               <div className="story-card__content">
                 <div className="story-card__header">
                   <div>
-                    <p className="card-pill">{story.status ?? 'draft'}</p>
-                    <h2>{story.title}</h2>
+                    <div className="story-card__pills">
+                      <span className="card-pill">{story.status ?? 'draft'}</span>
+                      {story.reading_level ? (
+                        <span className="card-pill card-pill--level">{story.reading_level}</span>
+                      ) : null}
+                    </div>
+                    <h3 className="story-card__title">{story.title}</h3>
                   </div>
                 </div>
 
                 <dl className="story-card__details">
                   <div>
-                    <dt>Child Name</dt>
-                    <dd>{story.child_name ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Child Age</dt>
-                    <dd>{story.child_age ?? '—'}</dd>
+                    <dt>Child</dt>
+                    <dd>{story.child_name ? `${story.child_name}${story.child_age ? ` (${story.child_age} yrs)` : ''}` : '—'}</dd>
                   </div>
                   <div>
                     <dt>Language</dt>
-                    <dd>{story.language ?? '—'}</dd>
+                    <dd>{story.language ?? 'English'}</dd>
                   </div>
                   <div>
-                    <dt>Status</dt>
-                    <dd>{story.status ?? 'draft'}</dd>
-                  </div>
-                  <div>
-                    <dt>Created Date</dt>
+                    <dt>Created</dt>
                     <dd>{formatDate(story.created_at)}</dd>
                   </div>
                 </dl>
               </div>
 
               <div className="story-card__actions">
-                <Link to={`/stories/${story.id}`} className="button button-secondary">
-                  Open
+                <Link
+                  to={`/stories/${story.id}`}
+                  className="button button-primary story-card__open-link"
+                  aria-label={`Open story: ${story.title}`}
+                >
+                  Open Story →
                 </Link>
-                <button type="button" className="button button-secondary" onClick={() => handlePlaceholderAction('Editing')}>
-                  Edit
-                </button>
                 <button
                   type="button"
-                  className="button button-secondary"
+                  className="button button-secondary story-card__delete-btn"
                   onClick={() => void handleDelete(story.id)}
                   disabled={deletingId === story.id}
+                  aria-label={`Delete story: ${story.title}`}
                 >
-                  {deletingId === story.id ? 'Deleting…' : 'Delete'}
+                  {deletingId === story.id ? 'Deleting…' : '🗑️ Delete'}
                 </button>
               </div>
             </article>

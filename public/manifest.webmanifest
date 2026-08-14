@@ -1,0 +1,25 @@
+{
+  "name": "ORBIS - Children's Storytelling Studio",
+  "short_name": "ORBIS",
+  "description": "AI-crafted personalized bedtime stories, illustrated storybooks, interactive quizzes, and gentle narration for children.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f8ff",
+  "theme_color": "#6c5ce7",
+  "orientation": "portrait-primary",
+  "categories": ["education", "books", "kids", "entertainment"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
