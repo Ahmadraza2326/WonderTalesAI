@@ -54,9 +54,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // 3. Server-side Atomic Quota & Cooldown Check
-    const { data: quotaData, error: quotaError } = await supabase.rpc(
-      "consume_story_generation_quota",
+    // 3. Server-side Pre-flight Quota & Cooldown Check (Non-consuming)
+    const { data: quotaStatus, error: quotaError } = await supabase.rpc(
+      "get_user_generation_quota",
       { p_daily_limit: 10, p_cooldown_seconds: 20 }
     );
 
@@ -64,18 +64,34 @@ serve(async (req: Request) => {
       console.error("[generate-story-package] Quota RPC error:", quotaError);
     }
 
-    const quota = quotaData as { allowed?: boolean; code?: string; message?: string; retry_after_seconds?: number } | null;
+    const quota = quotaStatus as {
+      authenticated?: boolean;
+      used?: number;
+      daily_limit?: number;
+      remaining?: number;
+      cooldown_remaining?: number;
+    } | null;
 
-    if (quota && !quota.allowed) {
-      const status = quota.code === "COOLDOWN_ACTIVE" ? 429 : 403;
-      return new Response(
-        JSON.stringify({
-          error: quota.message || "Quota or cooldown limit reached.",
-          code: quota.code,
-          retry_after_seconds: quota.retry_after_seconds,
-        }),
-        { status, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    if (quota) {
+      if ((quota.cooldown_remaining ?? 0) > 0) {
+        return new Response(
+          JSON.stringify({
+            error: `Cooldown active. Please wait ${quota.cooldown_remaining} seconds before generating another story.`,
+            code: "COOLDOWN_ACTIVE",
+            retry_after_seconds: quota.cooldown_remaining,
+          }),
+          { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      if ((quota.used ?? 0) >= (quota.daily_limit ?? 10)) {
+        return new Response(
+          JSON.stringify({
+            error: `Daily limit of ${quota.daily_limit ?? 10} stories reached. Limit resets at midnight.`,
+            code: "DAILY_LIMIT_REACHED",
+          }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     // 4. Validate Request Body
@@ -89,7 +105,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // 5. Server-Side Gemini API Request (Secret Key never exposed to client)
+    // 5. Server-Side Gemini API Request (Gemini 3.6 Flash)
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("VITE_GEMINI_API_KEY");
     if (!geminiApiKey) {
       return new Response(
@@ -98,7 +114,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
 
     const geminiResponse = await fetch(geminiEndpoint, {
       method: "POST",
@@ -131,7 +147,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ text: generatedText, quota: quota || { allowed: true } }),
+      JSON.stringify({ text: generatedText }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (err) {

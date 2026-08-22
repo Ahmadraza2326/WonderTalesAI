@@ -160,11 +160,13 @@ export function StoryWorkspacePage() {
     setIsGeneratingNarration(true)
     setErrorMessage(null)
     setSuccessMessage(null)
+    const storyLanguage = story.language || 'English'
     try {
       if (!force) {
         const cachedNarration = await storyAssetCacheService.getNarration(
           story,
-          user.id
+          user.id,
+          storyLanguage
         )
 
         if (cachedNarration) {
@@ -174,11 +176,12 @@ export function StoryWorkspacePage() {
         }
       }
 
-      const generatedNarration = await generateStoryNarration(story)
+      const generatedNarration = await generateStoryNarration(story, storyLanguage)
       await storyAssetCacheService.saveNarration(
         story,
         user.id,
-        generatedNarration
+        generatedNarration,
+        storyLanguage
       )
       setNarration(generatedNarration)
       setSuccessMessage(
@@ -195,7 +198,7 @@ export function StoryWorkspacePage() {
     }
   }, [story, user])
 
-  const handleTestGeminiConnection = useCallback(async () => {
+  const handleTestOrbisAIConnection = useCallback(async () => {
     setIsTestingGemini(true)
     setGeminiError(null)
     setGeminiResult(null)
@@ -206,7 +209,7 @@ export function StoryWorkspacePage() {
       setGeminiResult(responseText)
     } catch (error) {
       setGeminiError(
-        error instanceof Error ? error.message : 'Unable to reach Gemini.'
+        error instanceof Error ? error.message : 'Unable to reach ORBIS AI server.'
       )
     } finally {
       setIsTestingGemini(false)
@@ -424,34 +427,13 @@ export function StoryWorkspacePage() {
           {/* TAB 1: READING & AUDIO */}
           {activeTab === 'reading' ? (
             <div className="workspace-tab-content">
-              {storyBook ? (
-                <StoryBookViewer storyBook={storyBook} />
-              ) : (
-                <div className="card-panel storybook-prompt-card">
-                  <div className="storybook-prompt-card__content">
-                    <span className="storybook-prompt-card__icon" aria-hidden="true">
-                      🎨
-                    </span>
-                    <h3>Illustrated Digital Storybook</h3>
-                    <p>
-                      Transform this story into an illustrated multi-page storybook with turn-page animations and visuals.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="button button-primary"
-                    onClick={() => handleGenerateStoryBook(false)}
-                    disabled={isGeneratingStoryBook}
-                  >
-                    {isGeneratingStoryBook
-                      ? 'Creating StoryBook…'
-                      : '✨ Create Illustrated StoryBook'}
-                  </button>
-                </div>
-              )}
-
-              {/* Story Narrative, Narration & Illustrations */}
-              <StoryViewer story={story} narration={narration} mode="reading" />
+              {/* Immersive StoryBook Reader */}
+              <StoryBookViewer
+                storyBook={storyBook}
+                story={story}
+                narration={narration}
+                onExploreLearning={() => setActiveTab('learning')}
+              />
             </div>
           ) : null}
 
@@ -564,18 +546,18 @@ export function StoryWorkspacePage() {
                   <button
                     type="button"
                     className="button button-secondary tool-btn"
-                    onClick={handleTestGeminiConnection}
+                    onClick={handleTestOrbisAIConnection}
                     disabled={isTestingGemini}
                   >
-                    {isTestingGemini ? 'Testing Gemini API…' : '⚡ Test Gemini API'}
+                    {isTestingGemini ? 'Checking ORBIS AI…' : '⚡ Check ORBIS AI'}
                   </button>
                 </div>
               </section>
 
-              {/* Gemini Connection Status Output */}
+              {/* ORBIS AI Connection Status Output */}
               {geminiResult || geminiError ? (
                 <div className="card-panel gemini-test-card" role="status">
-                  <h4>Gemini Diagnostic Output</h4>
+                  <h4>ORBIS AI Diagnostic Output</h4>
                   {geminiResult ? <p className="success-text">{geminiResult}</p> : null}
                   {geminiError ? <p className="form-status error">{geminiError}</p> : null}
                 </div>

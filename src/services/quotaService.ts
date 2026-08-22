@@ -98,6 +98,64 @@ export const quotaService = {
     }
   },
 
+  /**
+   * Pre-flight eligibility check without consuming quota.
+   * Throws StoryGenerationCooldownError or StoryGenerationQuotaError if limit/cooldown active.
+   */
+  async checkQuota(
+    dailyLimit = DEFAULT_DAILY_LIMIT,
+    cooldownSeconds = DEFAULT_COOLDOWN_SECONDS
+  ): Promise<QuotaStatus> {
+    const status = await this.getQuotaStatus(dailyLimit, cooldownSeconds)
+    if (status.cooldown_remaining > 0) {
+      throw new StoryGenerationCooldownError(
+        `Cooldown active. Please wait ${status.cooldown_remaining} seconds before generating another story.`,
+        status.cooldown_remaining
+      )
+    }
+    if (status.used >= status.daily_limit) {
+      throw new StoryGenerationQuotaError(
+        `Daily limit of ${status.daily_limit} stories reached. Limit resets tomorrow.`
+      )
+    }
+    return status
+  },
+
+  /**
+   * Resets local fallback state (useful for automated testing and test suites).
+   */
+  resetLocalState(): void {
+    localLastGenerationTime = 0
+    localDailyCount = 0
+    localDailyDate = new Date().toISOString().split('T')[0]
+  },
+
+  /**
+   * Safe development-only helper: resets the current authenticated user's quota in Supabase.
+   * Strictly restricted to development environments (import.meta.env.DEV check).
+   */
+  async devResetAuthenticatedQuota(): Promise<{ success: boolean; message?: string; error?: string }> {
+    if (typeof import.meta !== 'undefined' && import.meta.env && !import.meta.env.DEV) {
+      throw new Error('devResetAuthenticatedQuota is strictly restricted to development environments.')
+    }
+
+    this.resetLocalState()
+
+    try {
+      const { data, error } = await supabase.rpc('dev_reset_user_quota')
+      if (error) {
+        return { success: false, error: `${error.code || 'RPC_ERROR'}: ${error.message}` }
+      }
+      const res = data as { success: boolean; message?: string; error?: string } | null
+      if (res && res.success === false) {
+        return { success: false, error: res.error || res.message || 'Reset rejected by database.', message: res.message }
+      }
+      return res || { success: true, message: 'Quota successfully reset.' }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  },
+
   localFallbackConsume(dailyLimit: number, cooldownSeconds: number): QuotaCheckResult {
     const today = new Date().toISOString().split('T')[0]
     const now = Date.now()

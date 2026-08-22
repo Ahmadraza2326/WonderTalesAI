@@ -8,10 +8,11 @@ import { useTheme } from '../hooks/useTheme'
 // Route-level code splitting with React.lazy
 const HomePage = lazy(() => import('../pages/HomePage').then((m) => ({ default: m.HomePage })))
 const AuthPage = lazy(() => import('../pages/AuthPage').then((m) => ({ default: m.AuthPage })))
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const CreateStoryPage = lazy(() => import('../pages/CreateStoryPage').then((m) => ({ default: m.CreateStoryPage })))
 const StoryWorkspacePage = lazy(() => import('../pages/StoryWorkspacePage').then((m) => ({ default: m.StoryWorkspacePage })))
-const StoriesPlaceholderPage = lazy(() => import('../pages/StoriesPlaceholderPage').then((m) => ({ default: m.StoriesPlaceholderPage })))
+const StoryLibraryPage = lazy(() => import('../pages/StoryLibraryPage').then((m) => ({ default: m.StoryLibraryPage })))
 const ProfilePage = lazy(() => import('../pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
@@ -26,11 +27,12 @@ export function AppRouter() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/stories/new" element={<CreateStoryPage />} />
               <Route path="/stories/:id" element={<StoryWorkspacePage />} />
-              <Route path="/stories" element={<StoriesPlaceholderPage />} />
+              <Route path="/stories" element={<StoryLibraryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

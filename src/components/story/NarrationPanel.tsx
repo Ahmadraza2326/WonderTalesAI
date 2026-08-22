@@ -159,9 +159,9 @@ export const NarrationPanel = memo(function NarrationPanel({
 
       <div className="narration-panel__summary">
         <div>Language: {narration.language}</div>
-        <div>{narration.segments.length} segments</div>
-        <div>Current segment: {currentSegment + 1}</div>
-        <div>{hasRealAudio ? 'Audio: High Quality' : 'Voice: Browser Synthesizer'}</div>
+        <div>{narration.segments.length} Scenes</div>
+        <div>Scene {currentSegment + 1} of {narration.segments.length}</div>
+        <div>{hasRealAudio ? 'High Quality Audio' : 'Interactive Narration'}</div>
       </div>
 
       <AudioPlayer

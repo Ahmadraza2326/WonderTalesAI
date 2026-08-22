@@ -229,6 +229,10 @@ export class AudioController {
     }
   }
 
+  isFallbackMode(): boolean {
+    return this.isUsingSpeechSynthesis
+  }
+
   destroy(): void {
     this.stop()
     this.removeEventListeners()
@@ -239,3 +243,5 @@ export class AudioController {
     this.options = {}
   }
 }
+
+export const audioController = new AudioController()

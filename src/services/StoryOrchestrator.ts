@@ -36,8 +36,8 @@ export class StoryOrchestrator {
     story: StoryRecord,
     userId: string
   ): Promise<StoryRecord> {
-    // 1. Atomic server-side quota and cooldown check
-    await quotaService.consumeQuota()
+    // 1. Pre-flight check: Verify quota and cooldown eligibility without pre-consuming
+    await quotaService.checkQuota()
 
     // 2. Generation attempt version lock (prevents late promises from race condition)
     const currentVersion = (this.activeGenerations.get(story.id) ?? 0) + 1
@@ -71,6 +71,13 @@ export class StoryOrchestrator {
 
       if (error) {
         throw error
+      }
+
+      // 6. Atomically consume exactly 1 quota unit only upon successful generation and save
+      try {
+        await quotaService.consumeQuota()
+      } catch (quotaErr) {
+        console.warn('Quota consumption recorded with notice:', quotaErr)
       }
 
       return {

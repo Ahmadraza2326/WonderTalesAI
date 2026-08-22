@@ -28,32 +28,10 @@ export const StoryViewer = memo(function StoryViewer({
 
   if (mode === 'reading') {
     return (
-      <section className="story-main card-panel story-reader-shell">
-        <div className="story-reader-shell__hero">
-          <div>
-            <p className="storybook-reader__eyebrow">Story Narrative</p>
-            <h3>Full Tale Reading</h3>
-            <p>
-              Enjoy the narrative in a calm layout with warm storybook typography.
-            </p>
-          </div>
-        </div>
-
-        {storyText ? (
-          <div className="story-reader-shell__story-card">
-            <div className="story-content story-reader-shell__story-content">
-              <p>{storyText}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="story-empty card-panel">
-            <p>No story narrative has been generated yet.</p>
-          </div>
-        )}
-
-        <NarrationPanel narration={narration} />
+      <div className="story-supportive-reading-container">
         <IllustrationGallery story={story} />
-      </section>
+        {narration ? <NarrationPanel narration={narration} /> : null}
+      </div>
     )
   }
 

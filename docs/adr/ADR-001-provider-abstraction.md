@@ -29,9 +29,31 @@ The core product code can stay focused on user workflows rather than vendor-spec
 
 The platform is not locked to a single AI provider. This reduces strategic risk and allows the team to choose tools based on capability, cost, and reliability at the time of integration.
 
-### Future Providers
-
 The architecture is prepared for future providers such as alternative text generation services, voice providers, or visual generation systems. New providers can be added behind the same interface with limited impact on the rest of the application.
+
+## VoiceProvider Abstraction & TTS
+
+ORBis uses the `VoiceProvider` interface (located in `src/services/ai/voiceProvider.ts`) to manage Text-to-Speech (TTS) generation. This abstraction ensures the core application (`audioController.ts`, `readAlongSpeechService.ts`) is completely decoupled from the underlying TTS engine.
+
+### Production Cloud Provider Path
+By default (or when `VITE_TTS_PROVIDER` is not set to `piper`), ORBis utilizes the `OrbisVoiceProvider` which calls the `generate-narration-audio` Supabase Edge Function. This edge function securely interacts with Cloud TTS APIs (e.g., Gemini or Google Cloud TTS). The browser is never responsible for production provider credentials.
+
+### Local Piper Development Setup
+For local development and testing, a local Piper TTS engine can be used without incurring API costs.
+1. The frontend checks `VITE_TTS_PROVIDER=piper` and instantiates the `PiperVoiceProvider`.
+2. The `PiperVoiceProvider` calls a lightweight local Node.js server (`scripts/local_tts_server.ts`) running at `http://localhost:3001/api/tts`.
+3. The local server spawns the isolated `piper.exe` process, streams the generated WAV audio back, and the provider seamlessly converts it into a local blob URL (`audioUrl`) for playback.
+
+#### Required Configuration
+To use Piper locally, set the following environment variables in your `.env`:
+- `VITE_TTS_PROVIDER=piper`
+- `PIPER_EXECUTABLE_PATH=<absolute_or_relative_path_to_piper.exe>`
+- `PIPER_MODEL_DIR=<absolute_or_relative_path_to_piper_models_directory>`
+
+### How to Add a Future TTS Provider
+1. Implement the `VoiceProvider` interface in `src/services/ai/providers/`.
+2. The `generateNarration` method should accept an array of text segments and return an array of `GeneratedNarration` objects containing standard `audioUrl` links (which can be standard URLs, Data URIs, or Blob URLs).
+3. Update the factory logic in `src/services/ai/narrationGenerationService.ts` to instantiate your new provider based on configuration.
 
 ## Consequences
 

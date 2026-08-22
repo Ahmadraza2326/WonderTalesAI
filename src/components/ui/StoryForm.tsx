@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import { useChildProfiles } from '../../hooks/useChildProfiles'
+import { useI18n } from '../../context/I18nContext'
+import { ChildProfileCard } from '../profile/ChildProfileCard'
+import { AddChildModal } from '../profile/AddChildModal'
+import type { ChildProfile } from '../../types/childProfile'
 
 export type StoryFormValues = {
   title: string
@@ -28,7 +33,7 @@ const initialValues: StoryFormValues = {
   language: 'English',
   theme: '🏰 Enchanted Starlight Forest',
   moral: '❤️ Kindness & Empathy',
-  characters: 'Luna and 🦉 Oliver the Wise Owl',
+  characters: 'Luna and 🦉 Oliver the Wise Owl (wise & gentle)',
   storyLength: 'short',
   readingLevel: 'beginner',
 }
@@ -161,10 +166,49 @@ export function StoryForm({
   successMessage,
   errorMessage,
 }: StoryFormProps) {
+  const { t } = useI18n()
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1)
   const [values, setValues] = useState<StoryFormValues>(initialValues)
   const [selectedCompanion, setSelectedCompanion] = useState<string>('owl')
   const [errors, setErrors] = useState<StoryFormErrors>({})
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false)
+
+  const {
+    profiles,
+    selectedProfileId,
+    selectedProfile,
+    selectProfile,
+    createProfile,
+  } = useChildProfiles()
+
+  function handleSelectProfile(profile: ChildProfile | null) {
+    if (!profile) {
+      selectProfile(null)
+      return
+    }
+
+    selectProfile(profile)
+    const companion = COMPANIONS.find((c) => c.id === selectedCompanion) || COMPANIONS[0]
+    const childName = profile.name.trim() || 'Hero'
+    const newCharacters = `${childName} and ${companion.avatar} ${companion.name} (${companion.tagline.toLowerCase()})`
+
+    setValues((current) => ({
+      ...current,
+      childName: profile.name,
+      childAge: String(profile.age),
+      readingLevel: profile.reading_level || current.readingLevel,
+      language: profile.preferred_language || current.language,
+      theme: profile.favorite_theme || current.theme,
+      characters: newCharacters,
+      title: current.title ? current.title : `${childName} and the ${companion.name}`,
+    }))
+
+    setErrors((current) => ({
+      ...current,
+      childName: undefined,
+      childAge: undefined,
+    }))
+  }
 
   function handleChange(
     event: React.ChangeEvent<
@@ -208,23 +252,23 @@ export function StoryForm({
 
     if (step === 1) {
       if (!values.title.trim()) {
-        nextErrors.title = 'Please enter a story title.'
+        nextErrors.title = t('err_child_name_required')
       }
       if (!values.childName.trim()) {
-        nextErrors.childName = 'Please enter the child’s name.'
+        nextErrors.childName = t('err_child_name_required')
       }
       if (!values.childAge.trim()) {
-        nextErrors.childAge = 'Please select or enter the child’s age.'
+        nextErrors.childAge = t('err_child_age_required')
       }
     } else if (step === 2) {
       if (!values.theme.trim()) {
-        nextErrors.theme = 'Please choose a story world or theme.'
+        nextErrors.theme = t('err_theme_required')
       }
       if (!values.moral.trim()) {
-        nextErrors.moral = 'Please select a moral lesson.'
+        nextErrors.moral = t('err_moral_required')
       }
       if (!values.characters.trim()) {
-        nextErrors.characters = 'Please describe the characters.'
+        nextErrors.characters = t('err_child_name_required')
       }
     }
 
@@ -269,10 +313,10 @@ export function StoryForm({
       {/* Wizard Progress Stepper */}
       <nav className="wizard-stepper" aria-label="Creation Steps">
         {[
-          { step: 1, label: '1. The Hero', icon: '👤' },
-          { step: 2, label: '2. The World', icon: '🏰' },
-          { step: 3, label: '3. Reading Goal', icon: '📚' },
-          { step: 4, label: '4. Tale Review', icon: '✨' },
+          { step: 1, label: t('step_1_title'), icon: '👤' },
+          { step: 2, label: t('step_2_title'), icon: '🏰' },
+          { step: 3, label: t('step_3_title'), icon: '📚' },
+          { step: 4, label: t('step_4_title'), icon: '✨' },
         ].map((item) => (
           <button
             type="button"
@@ -296,22 +340,80 @@ export function StoryForm({
       {currentStep === 1 ? (
         <section className="form-section card-panel" aria-labelledby="step-hero">
           <div className="form-section__header">
-            <span className="form-section__badge">Step 1 of 4</span>
+            <span className="form-section__badge">{t('step_1_title')}</span>
             <h2 id="step-hero" className="form-section__title">
-              Who is the Hero of this Tale?
+              {t('who_is_hero')}
             </h2>
             <p className="form-section__subtitle">
-              Every ORBIS adventure begins with your child and their loyal companion.
+              {t('step_1_subtitle')}
             </p>
+          </div>
+
+          {/* Child Profile Quick Selector (Phase 8A) */}
+          <div className="child-profile-selector-section">
+            <div className="child-profile-selector-header">
+              <h3 className="child-profile-selector-title">
+                <span>🌟</span>
+                <span>{t('select_child_profile')}</span>
+              </h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                + {t('add_child_profile')}
+              </button>
+            </div>
+
+            <div className="child-profile-carousel">
+              {profiles.map((profile) => (
+                <ChildProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  isSelected={selectedProfileId === profile.id}
+                  onSelect={handleSelectProfile}
+                  compact
+                />
+              ))}
+
+              <div
+                role="button"
+                tabIndex={0}
+                className={`child-profile-card custom-child ${
+                  selectedProfileId === null ? 'selected' : ''
+                }`}
+                onClick={() => handleSelectProfile(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleSelectProfile(null)
+                  }
+                }}
+              >
+                <div className="child-profile-avatar-container">
+                  <span className="child-profile-avatar">✏️</span>
+                </div>
+                <div className="child-profile-details">
+                  <div className="child-profile-name">{t('or_enter_custom_hero')}</div>
+                  <div className="child-profile-meta-row">{t('create_new_story')}</div>
+                </div>
+              </div>
+            </div>
+
+            {selectedProfile && (
+              <p className="form-help-text" style={{ marginTop: '0.75rem', color: 'var(--brand-purple)' }}>
+                ✨ {t('step_1_subtitle')} (<strong>{selectedProfile.name}</strong>)
+              </p>
+            )}
           </div>
 
           <div className="form-grid">
             <div className="field-group full-width">
-              <label htmlFor="title">Story Title</label>
+              <label htmlFor="title">{t('story_title_label')}</label>
               <input
                 id="title"
                 name="title"
-                placeholder="e.g. Luna and the Whispering Tree"
+                placeholder={t('story_title_placeholder')}
                 value={values.title}
                 onChange={handleChange}
                 aria-invalid={Boolean(errors.title)}
@@ -320,11 +422,11 @@ export function StoryForm({
             </div>
 
             <div className="field-group">
-              <label htmlFor="childName">Child's Name</label>
+              <label htmlFor="childName">{t('who_is_hero')}</label>
               <input
                 id="childName"
                 name="childName"
-                placeholder="e.g. Luna"
+                placeholder={t('hero_name_placeholder')}
                 value={values.childName}
                 onChange={handleChange}
                 aria-invalid={Boolean(errors.childName)}
@@ -335,15 +437,15 @@ export function StoryForm({
             </div>
 
             <div className="field-group">
-              <label htmlFor="childAge">Child's Age (Years)</label>
+              <label htmlFor="childAge">{t('hero_age')}</label>
               <input
                 id="childAge"
                 name="childAge"
                 type="number"
                 inputMode="numeric"
-                min="1"
+                min="2"
                 max="16"
-                placeholder="e.g. 6"
+                placeholder="6"
                 value={values.childAge}
                 onChange={handleChange}
                 aria-invalid={Boolean(errors.childAge)}
@@ -366,7 +468,7 @@ export function StoryForm({
             </div>
 
             <div className="field-group full-width">
-              <label>Choose a Magical Story Companion</label>
+              <label>{t('choose_companion')}</label>
               <div className="companion-grid" role="group" aria-label="Companion Avatar Options">
                 {COMPANIONS.map((companion) => (
                   <button
@@ -383,6 +485,13 @@ export function StoryForm({
               </div>
             </div>
           </div>
+
+          <AddChildModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onSubmitProfile={createProfile}
+            onSuccess={(newProfile) => handleSelectProfile(newProfile)}
+          />
         </section>
       ) : null}
 
@@ -390,18 +499,18 @@ export function StoryForm({
       {currentStep === 2 ? (
         <section className="form-section card-panel" aria-labelledby="step-world">
           <div className="form-section__header">
-            <span className="form-section__badge">Step 2 of 4</span>
+            <span className="form-section__badge">{t('step_2_title')}</span>
             <h2 id="step-world" className="form-section__title">
-              Choose the Story World & Values
+              {t('choose_world')}
             </h2>
             <p className="form-section__subtitle">
-              Select an imaginative realm and a life-shaping moral for the journey.
+              {t('step_2_subtitle')}
             </p>
           </div>
 
           <div className="form-grid">
             <div className="field-group full-width">
-              <label>Select an Inspiring Realm</label>
+              <label>{t('choose_world')}</label>
               <div className="world-grid" role="group" aria-label="Story World Options">
                 {WORLDS.map((world) => (
                   <button
@@ -419,11 +528,11 @@ export function StoryForm({
                 ))}
               </div>
               <div className="custom-theme-input">
-                <label htmlFor="theme" className="sublabel">Or write a custom setting:</label>
+                <label htmlFor="theme" className="sublabel">{t('or_enter_custom_hero')}:</label>
                 <input
                   id="theme"
                   name="theme"
-                  placeholder="e.g. Floating island of giant glowing sunflowers"
+                  placeholder="🏰 Enchanted Starlight Forest"
                   value={values.theme}
                   onChange={handleChange}
                 />
@@ -432,11 +541,11 @@ export function StoryForm({
             </div>
 
             <div className="field-group full-width">
-              <label htmlFor="moral">Moral Lesson / Value</label>
+              <label htmlFor="moral">{t('core_moral')}</label>
               <input
                 id="moral"
                 name="moral"
-                placeholder="e.g. Kindness and listening to friends"
+                placeholder="❤️ Kindness & Empathy"
                 value={values.moral}
                 onChange={handleChange}
                 aria-invalid={Boolean(errors.moral)}
@@ -457,7 +566,7 @@ export function StoryForm({
             </div>
 
             <div className="field-group full-width">
-              <label htmlFor="characters">Characters in this Adventure</label>
+              <label htmlFor="characters">{t('character_cast_summary')}</label>
               <textarea
                 id="characters"
                 name="characters"
@@ -479,18 +588,18 @@ export function StoryForm({
       {currentStep === 3 ? (
         <section className="form-section card-panel" aria-labelledby="step-reading">
           <div className="form-section__header">
-            <span className="form-section__badge">Step 3 of 4</span>
+            <span className="form-section__badge">{t('step_3_title')}</span>
             <h2 id="step-reading" className="form-section__title">
-              Reading Goals & Duration
+              {t('step_3_subtitle')}
             </h2>
             <p className="form-section__subtitle">
-              Tailor the language, pace, and reading difficulty for your young reader.
+              {t('default_story_preferences_desc')}
             </p>
           </div>
 
           <div className="form-grid">
             <div className="field-group">
-              <label htmlFor="language">Language</label>
+              <label htmlFor="language">{t('story_language')}</label>
               <select
                 id="language"
                 name="language"
@@ -498,38 +607,43 @@ export function StoryForm({
                 onChange={handleChange}
               >
                 <option value="English">🇬🇧 English</option>
+                <option value="Urdu">🇵🇰 Urdu (اردو)</option>
                 <option value="Arabic">🇦🇪 Arabic (العربية)</option>
-                <option value="French">🇫🇷 French (Français)</option>
                 <option value="Spanish">🇪🇸 Spanish (Español)</option>
+                <option value="French">🇫🇷 French (Français)</option>
                 <option value="German">🇩🇪 German (Deutsch)</option>
+                <option value="Mandarin">🇨🇳 Mandarin (中文)</option>
+                <option value="Japanese">🇯🇵 Japanese (日本語)</option>
+                <option value="Hindi">🇮🇳 Hindi (हिन्दी)</option>
+                <option value="Portuguese">🇧🇷 Portuguese (Português)</option>
               </select>
             </div>
 
             <div className="field-group">
-              <label htmlFor="storyLength">Story Length</label>
+              <label htmlFor="storyLength">{t('story_length')}</label>
               <select
                 id="storyLength"
                 name="storyLength"
                 value={values.storyLength}
                 onChange={handleChange}
               >
-                <option value="short">⚡ Short (Quick adventure)</option>
-                <option value="medium">📖 Medium (Standard read)</option>
-                <option value="long">🌟 Long (Bedtime journey)</option>
+                <option value="short">⚡ {t('length_short')}</option>
+                <option value="medium">📖 {t('length_medium')}</option>
+                <option value="long">🌟 {t('length_long')}</option>
               </select>
             </div>
 
             <div className="field-group">
-              <label htmlFor="readingLevel">Reading Level</label>
+              <label htmlFor="readingLevel">{t('select_reading_level')}</label>
               <select
                 id="readingLevel"
                 name="readingLevel"
                 value={values.readingLevel}
                 onChange={handleChange}
               >
-                <option value="beginner">🌱 Beginner (Simple words, rhyming)</option>
-                <option value="intermediate">🌿 Intermediate (Engaging dialogue)</option>
-                <option value="advanced">🌳 Advanced (Rich vocabulary)</option>
+                <option value="beginner">🌱 {t('reading_level_beginner')}</option>
+                <option value="intermediate">🌿 {t('reading_level_intermediate')}</option>
+                <option value="advanced">🌳 {t('reading_level_advanced')}</option>
               </select>
             </div>
 
@@ -538,26 +652,26 @@ export function StoryForm({
               <div className="estimator-header">
                 <span className="estimator-icon">📊</span>
                 <div>
-                  <h4 className="estimator-title">Smart Tale Estimator</h4>
-                  <p className="estimator-subtitle">Bedtime planning breakdown based on age {values.childAge || '6'}</p>
+                  <h4 className="estimator-title">{t('author_notes')}</h4>
+                  <p className="estimator-subtitle">{t('estimated_reading_time')}: {values.childAge || '6'}y</p>
                 </div>
               </div>
               <div className="estimator-metrics">
                 <div className="metric-pill">
-                  <span className="metric-label">Estimated Length</span>
+                  <span className="metric-label">{t('estimated_words')}</span>
                   <span className="metric-value">{estimates.words}</span>
                 </div>
                 <div className="metric-pill">
-                  <span className="metric-label">StoryBook Pages</span>
+                  <span className="metric-label">{t('story_pages_count')}</span>
                   <span className="metric-value">{estimates.pages}</span>
                 </div>
                 <div className="metric-pill">
-                  <span className="metric-label">Reading Time</span>
+                  <span className="metric-label">{t('estimated_reading_time')}</span>
                   <span className="metric-value">{estimates.duration}</span>
                 </div>
               </div>
               <small className="estimator-disclaimer">
-                *Estimates for pacing and bedtime planning. Story text and illustration count vary naturally.
+                *{t('print_disclaimer')}
               </small>
             </div>
           </div>
@@ -568,47 +682,47 @@ export function StoryForm({
       {currentStep === 4 ? (
         <section className="form-section card-panel" aria-labelledby="step-review">
           <div className="form-section__header">
-            <span className="form-section__badge">Step 4 of 4</span>
+            <span className="form-section__badge">{t('step_4_title')}</span>
             <h2 id="step-review" className="form-section__title">
-              Magic Tale Review
+              {t('step_4_title')}
             </h2>
             <p className="form-section__subtitle">
-              Verify your story parameters before Orbis AI crafts your draft.
+              {t('step_4_subtitle')}
             </p>
           </div>
 
           <div className="tale-review-card">
             <div className="review-book-cover">
               <span className="review-cover-icon">📖</span>
-              <h3 className="review-story-title">{values.title || 'Untitled Story Adventure'}</h3>
-              <p className="review-author">ORBIS Story Studio • By DINARYX</p>
+              <h3 className="review-story-title">{values.title || t('create_new_story')}</h3>
+              <p className="review-author">{t('app_name')} • By DINARYX</p>
             </div>
 
             <div className="review-details-grid">
               <div className="review-detail-item">
-                <span className="detail-label">Hero & Age</span>
+                <span className="detail-label">{t('who_is_hero')}</span>
                 <span className="detail-value">
-                  👤 {values.childName || 'Hero'} (Age {values.childAge || '6'})
+                  👤 {values.childName || 'Hero'} ({values.childAge || '6'}y)
                 </span>
               </div>
 
               <div className="review-detail-item">
-                <span className="detail-label">Story World</span>
+                <span className="detail-label">{t('choose_world')}</span>
                 <span className="detail-value">{values.theme || 'Magical World'}</span>
               </div>
 
               <div className="review-detail-item">
-                <span className="detail-label">Moral Focus</span>
+                <span className="detail-label">{t('core_moral')}</span>
                 <span className="detail-value">{values.moral || 'Kindness'}</span>
               </div>
 
               <div className="review-detail-item">
-                <span className="detail-label">Characters</span>
+                <span className="detail-label">{t('character_cast_summary')}</span>
                 <span className="detail-value">{values.characters}</span>
               </div>
 
               <div className="review-detail-item">
-                <span className="detail-label">Reading Target</span>
+                <span className="detail-label">{t('select_reading_level')}</span>
                 <span className="detail-value">
                   {values.language} • {values.readingLevel} • {estimates.duration}
                 </span>
@@ -617,9 +731,9 @@ export function StoryForm({
 
             {/* Deterministic Safe Prompt Enhancement Preview */}
             <div className="prompt-preview-box">
-              <span className="prompt-preview-badge">✨ Storyteller Direction</span>
+              <span className="prompt-preview-badge">✨ {t('author_notes')}</span>
               <p className="prompt-preview-text">
-                Orbis AI will craft a gentle, imaginative tale starring <strong>{values.childName || 'the hero'}</strong> with <strong>{values.characters}</strong>, journeying through <strong>{values.theme}</strong> with themes of <strong>{values.moral}</strong>.
+                {values.childName || 'Hero'} • {values.characters} • {values.theme} • {values.moral}.
               </p>
             </div>
           </div>
@@ -645,7 +759,7 @@ export function StoryForm({
             className="button button-secondary wizard-btn-prev"
             onClick={handlePrev}
           >
-            ← Back
+            {t('prev_step')}
           </button>
         ) : <div />}
 
@@ -655,7 +769,7 @@ export function StoryForm({
             className="button button-primary wizard-btn-next"
             onClick={handleNext}
           >
-            Next Step →
+            {t('next_step')}
           </button>
         ) : (
           <button
@@ -666,10 +780,10 @@ export function StoryForm({
             {isSubmitting ? (
               <>
                 <span className="button-spinner" aria-hidden="true" />
-                <span>Creating Story Adventure…</span>
+                <span>{t('generating_story')}</span>
               </>
             ) : (
-              '✨ Create Story Adventure'
+              t('create_illustrated_tale')
             )}
           </button>
         )}

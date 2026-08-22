@@ -72,6 +72,16 @@ export const storyService = {
       .single()
   },
 
+  async toggleFavorite(storyId: string, userId: string, isFavorite: boolean) {
+    return supabase
+      .from('stories')
+      .update({ is_favorite: isFavorite })
+      .eq('id', storyId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+  },
+
   async deleteStory(storyId: string, userId: string) {
     return supabase
       .from('stories')

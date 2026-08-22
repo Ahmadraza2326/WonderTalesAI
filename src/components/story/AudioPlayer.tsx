@@ -27,8 +27,8 @@ export const AudioPlayer: FC<AudioPlayerProps> = ({
   return (
     <section className="audio-player">
       <div className="audio-player__headline">
-        <h3>Audio Player</h3>
-        <p>Control the narration playback experience with a gentle, focused layout.</p>
+        <h3>Narration Audio</h3>
+        <p>Control the audio storytelling with a gentle, focused layout.</p>
       </div>
 
       <div className="audio-player__status" aria-live="polite">
@@ -37,7 +37,7 @@ export const AudioPlayer: FC<AudioPlayerProps> = ({
       </div>
 
       <div className="audio-player__counter">
-        Segment {currentSegment} / {totalSegments}
+        Scene {currentSegment} of {totalSegments}
       </div>
 
       <div className="audio-player__controls">

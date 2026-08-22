@@ -12,7 +12,7 @@ export function parseLearningPackage(
   const cleaned = cleanJsonResponse(response)
 
   if (!cleaned) {
-    throw new Error('No valid JSON object found in the Gemini response.')
+    throw new Error('No valid JSON object found in the ORBIS AI response.')
   }
 
   let parsed: unknown

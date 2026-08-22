@@ -20,7 +20,8 @@ export interface StoryRecord {
   updated_at: StoryRow['updated_at']
   story_content: StoryRow['story_content']
   generation_status: StoryRow['generation_status']
-    generated_at: StoryRow['generated_at']
+  generated_at: StoryRow['generated_at']
+  is_favorite?: boolean
   learning_package: LearningPackage | null
   genre?: string
 }

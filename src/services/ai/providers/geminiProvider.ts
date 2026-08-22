@@ -7,25 +7,25 @@ import {
   StoryGenerationCooldownError,
   StoryGenerationConfigError,
 } from '../errors'
-import { getGeminiClient } from '../../geminiService'
 
-export class GeminiProvider {
-  /**
-   * Generates story package content via the server-side Supabase Edge Function.
-   * Keeps GEMINI_API_KEY secure on the server and enforces server-side JWT auth & quotas.
-   */
+/**
+ * ORBIS AI Provider (Server Boundary Abstraction)
+ * Securely routes all text and story generation through the server-side Supabase Edge Function.
+ * Keeps provider API keys strictly isolated on the server and enforces JWT auth and quotas.
+ */
+export class OrbisAIProvider {
   async generateContent(prompt: string, timeoutMs?: number): Promise<string> {
     try {
       const invokePromise = this.callEdgeFunction(prompt)
 
       const text = await withTimeout(
         invokePromise,
-        timeoutMs,
-        'Story generation request timed out after waiting for server response.'
+        timeoutMs || 45000,
+        'ORBIS AI generation request timed out after waiting for server response.'
       )
 
       if (!text?.trim()) {
-        throw new StoryGenerationFormatError('Story generation returned an empty response.')
+        throw new StoryGenerationFormatError('ORBIS AI generation returned an empty response.')
       }
 
       return text.trim()
@@ -41,13 +41,24 @@ export class GeminiProvider {
       })
 
       if (error) {
-        // Try parsing Edge Function response body if available
-        const errorObj = error as { context?: { json?: () => Promise<{ code?: string; error?: string; retry_after_seconds?: number }> } }
-        const responseJson = errorObj.context?.json ? await errorObj.context.json().catch(() => null) : null
+        // Parse server error response payload if present
+        const errorObj = error as {
+          context?: {
+            json?: () => Promise<{
+              code?: string
+              error?: string
+              retry_after_seconds?: number
+            }>
+          }
+        }
+
+        const responseJson = errorObj.context?.json
+          ? await errorObj.context.json().catch(() => null)
+          : null
 
         if (responseJson?.code === 'COOLDOWN_ACTIVE') {
           throw new StoryGenerationCooldownError(
-            responseJson.error || 'Cooldown active.',
+            responseJson.error || 'ORBIS AI cooldown is active. Please wait a moment.',
             responseJson.retry_after_seconds ?? 20
           )
         }
@@ -58,20 +69,19 @@ export class GeminiProvider {
         }
         if (responseJson?.code === 'UNAUTHENTICATED') {
           throw new StoryGenerationConfigError(
-            responseJson.error || 'Authentication required to generate stories.'
+            responseJson.error || 'Authentication is required to generate stories.'
           )
         }
 
-        // If Edge function is not deployed in local offline dev, attempt local dev fallback
-        if (error.message?.includes('Failed to send a request') || error.message?.includes('FunctionsFetchError')) {
-          return this.localDevFallback(prompt)
-        }
-
-        throw new Error(responseJson?.error || error.message || 'Story generation service error')
+        throw new Error(
+          responseJson?.error ||
+            error.message ||
+            'ORBIS AI service is temporarily unavailable. Please try again.'
+        )
       }
 
       if (!data?.text) {
-        throw new StoryGenerationFormatError('Server response did not contain valid story text.')
+        throw new StoryGenerationFormatError('ORBIS AI server response did not contain valid story text.')
       }
 
       return data.text
@@ -79,38 +89,23 @@ export class GeminiProvider {
       if (
         err instanceof StoryGenerationCooldownError ||
         err instanceof StoryGenerationQuotaError ||
-        err instanceof StoryGenerationConfigError
+        err instanceof StoryGenerationConfigError ||
+        err instanceof StoryGenerationFormatError
       ) {
         throw err
       }
 
-      // If network fetch failed in local dev environment without Supabase functions running, try local fallback
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('Failed to fetch') || msg.includes('FunctionsFetchError') || msg.includes('network')) {
-        return this.localDevFallback(prompt)
+      if (msg.includes('Failed to send a request') || msg.includes('FunctionsFetchError') || msg.includes('network') || msg.includes('Failed to fetch')) {
+        throw new StoryGenerationConfigError(
+          'ORBIS AI server boundary is currently unreachable. Please check your network connection or verify that Edge Functions are active.'
+        )
       }
 
       throw err
     }
   }
-
-  private async localDevFallback(prompt: string): Promise<string> {
-    try {
-      const client = getGeminiClient()
-      const response = await client.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-      })
-
-      const text = response.text?.trim()
-      if (!text) {
-        throw new StoryGenerationFormatError('Local Gemini fallback returned an empty response.')
-      }
-      return text
-    } catch (err) {
-      throw classifyGenerationError(err)
-    }
-  }
 }
 
-export const geminiProvider = new GeminiProvider()
+export const orbisAIProvider = new OrbisAIProvider()
+export const geminiProvider = orbisAIProvider // Backward-compatible internal alias

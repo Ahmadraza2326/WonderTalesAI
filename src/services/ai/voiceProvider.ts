@@ -4,14 +4,24 @@ import type {
 
 export interface GeneratedNarration {
   id: number
-
   audioUrl: string
-
+  audioPath?: string | null
   duration: number
+}
+
+export interface GenerateNarrationOptions {
+  storyId?: string
+  contentHash?: string
+  language?: string
+  voiceName?: string
+  rate?: number
+  pitch?: number
+  forceRegenerate?: boolean
 }
 
 export interface VoiceProvider {
   generateNarration(
-    segments: NarrationSegment[]
+    segments: NarrationSegment[],
+    options?: GenerateNarrationOptions
   ): Promise<GeneratedNarration[]>
 }

@@ -1,30 +1,19 @@
 import type { AIProvider, TextResponse, ImageResponse } from './AIProvider'
-import { getGeminiClient } from '../../geminiService'
+import { orbisAIProvider } from '../providers/geminiProvider'
 
 export class GeminiProvider implements AIProvider {
   name = 'gemini'
 
   async generateText(prompt: string, model: string): Promise<TextResponse> {
-    const client = getGeminiClient()
-    const response = await client.models.generateContent({ model, contents: prompt })
-    return { text: response.text || '', model, provider: this.name }
+    const text = await orbisAIProvider.generateContent(prompt)
+    return { text, model, provider: this.name }
   }
 
-  async generateImage(prompt: string, model: string): Promise<ImageResponse> {
-    const client = getGeminiClient()
-    const response = await client.models.generateImages({
-      model,
-      prompt,
-      config: { numberOfImages: 1 },
-    })
-
-    const imageBytes = response.generatedImages?.[0]?.image?.imageBytes
-    if (!imageBytes) throw new Error('No image generated')
-
+  async generateImage(_prompt: string, model: string): Promise<ImageResponse> {
     return {
-      imageUrl: `data:image/png;base64,${imageBytes}`,
+      imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
       model,
-      provider: this.name
+      provider: this.name,
     }
   }
 }

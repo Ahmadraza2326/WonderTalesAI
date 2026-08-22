@@ -1,33 +1,17 @@
 import type { StoryRecord } from '../types/story'
 import type { StoryNarration } from '../types/narration'
+import { buildNarration } from './ai/narrationService'
 
 /**
  * NarrationGenerator is responsible for transforming a StoryRecord 
- * into a structured StoryNarration object.
+ * into a structured StoryNarration object with sentence-aligned segments across any supported language.
  */
 export async function generateNarration(
-  story: StoryRecord
+  story: StoryRecord,
+  language?: string,
+  customStoryContent?: string,
+  customTitle?: string
 ): Promise<StoryNarration> {
-  // Extract story content, defaulting to empty if not present
-  const storyContent = story.story_content ?? '';
-  
-  // Deterministically split the story into segments for narration.
-  // For now, we split by paragraphs to create simple narration segments.
-  const paragraphs = storyContent
-    .split('\n')
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-
-  const segments = paragraphs.map((text, index) => ({
-    id: index + 1,
-    text: text,
-    speaker: 'Narrator',
-    emotion: 'neutral',
-  }));
-
-  return {
-    title: story.title,
-    language: story.language ?? 'en',
-    segments: segments,
-  };
+  const targetLanguage = language || story.language || 'English'
+  return buildNarration(story, targetLanguage, customStoryContent, customTitle)
 }

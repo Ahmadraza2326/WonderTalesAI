@@ -1,34 +1,46 @@
 import type { StoryRecord } from '../../types/story'
 import type { StoryNarration } from '../../types/narration'
-
+import type { VoiceProvider } from './voiceProvider'
 import { buildNarration } from './narrationService'
-import { MockVoiceProvider } from './mockVoiceProvider'
+import { OrbisVoiceProvider } from './providers/orbisVoiceProvider'
+import { PiperVoiceProvider } from './providers/piperVoiceProvider'
+import { getNarrationHash } from '../storyAssetCacheService'
 
 export async function generateStoryNarration(
-  story: StoryRecord
+  story: StoryRecord,
+  language?: string,
+  customStoryContent?: string,
+  customTitle?: string,
+  provider?: VoiceProvider
 ): Promise<StoryNarration> {
-  const narration = buildNarration(story)
+  const targetLanguage = language || story.language || 'English'
+  const narration = buildNarration(story, targetLanguage, customStoryContent, customTitle)
+  const hash = await getNarrationHash(story, targetLanguage, customStoryContent, customTitle)
 
-  const provider = new MockVoiceProvider()
+  let voiceProvider = provider
+  if (!voiceProvider) {
+    if (import.meta.env.VITE_TTS_PROVIDER === 'piper') {
+      voiceProvider = new PiperVoiceProvider()
+    } else {
+      voiceProvider = new OrbisVoiceProvider()
+    }
+  }
 
-  const generatedAudio =
-    await provider.generateNarration(
-      narration.segments
-    )
+  const generatedAudio = await voiceProvider.generateNarration(narration.segments, {
+    storyId: story.id,
+    contentHash: hash,
+    language: narration.language,
+  })
 
-  narration.segments = narration.segments.map(
-    segment => ({
+  narration.segments = narration.segments.map((segment) => {
+    const audioInfo = generatedAudio.find((audio) => audio.id === segment.id)
+    return {
       ...segment,
-      audioUrl:
-        generatedAudio.find(
-          audio => audio.id === segment.id
-        )?.audioUrl ?? '',
-      duration:
-        generatedAudio.find(
-          audio => audio.id === segment.id
-        )?.duration ?? 0,
-    })
-  )
+      audioUrl: audioInfo?.audioUrl ?? '',
+      audioPath: audioInfo?.audioPath ?? null,
+      duration: audioInfo?.duration ?? 0,
+    }
+  })
 
   return narration
 }

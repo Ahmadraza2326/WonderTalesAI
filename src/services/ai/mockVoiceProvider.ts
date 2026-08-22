@@ -1,6 +1,7 @@
 import type {
   GeneratedNarration,
   VoiceProvider,
+  GenerateNarrationOptions,
 } from './voiceProvider'
 
 import type {
@@ -11,7 +12,8 @@ export class MockVoiceProvider
   implements VoiceProvider
 {
   async generateNarration(
-    segments: NarrationSegment[]
+    segments: NarrationSegment[],
+    _options?: GenerateNarrationOptions
   ): Promise<GeneratedNarration[]> {
     return segments.map(segment => ({
       id: segment.id,

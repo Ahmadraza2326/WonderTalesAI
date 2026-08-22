@@ -22,5 +22,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "checkModels.mjs"]
+  "include": ["src", "scripts", "checkModels.mjs"]
 }

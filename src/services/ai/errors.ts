@@ -30,7 +30,7 @@ export class StoryGenerationFormatError extends StoryGenerationError {
 }
 
 export class StoryGenerationConfigError extends StoryGenerationError {
-  constructor(message = 'Gemini API is not configured or authentication failed.') {
+  constructor(message = 'ORBIS AI service is not configured or authentication failed.') {
     super(message, 'CONFIG_ERROR')
     this.name = 'StoryGenerationConfigError'
   }

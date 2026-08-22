@@ -5,11 +5,13 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { storyService } from '../services/storyService'
 import { useAuth } from '../context/AuthContext'
+import { useI18n } from '../context/I18nContext'
 import type { StoryRecord } from '../types/story'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
+  const { t } = useI18n()
   const [stories, setStories] = useState<StoryRecord[]>([])
   const [isLoadingStories, setIsLoadingStories] = useState(true)
 
@@ -46,22 +48,20 @@ export function DashboardPage() {
     if (!value) return 'Recently'
     const d = new Date(value)
     if (Number.isNaN(d.getTime())) return 'Recently'
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }
 
   return (
     <PageContainer
-      title="Parent & Teacher Workspace"
-      intro="Manage your personalized stories, continue reading, or create a brand new adventure."
+      title={t('workspace_title')}
+      intro={t('workspace_intro')}
     >
       {/* Hero Welcome Card */}
       <section className="dashboard-hero card-panel" aria-label="Quick Actions">
         <div className="dashboard-hero__content">
-          <span className="dashboard-hero__badge">✨ Storyteller Studio</span>
-          <h2>Ready for another magical journey?</h2>
-          <p>
-            Create personalized tales that teach morals, build reading confidence, and spark lifelong imagination.
-          </p>
+          <span className="dashboard-hero__badge">✨ {t('storyteller_studio')}</span>
+          <h2>{t('ready_magical_journey')}</h2>
+          <p>{t('hero_card_desc')}</p>
         </div>
 
         <div className="dashboard-hero__actions">
@@ -70,21 +70,21 @@ export function DashboardPage() {
             className="button button-primary dashboard-hero__cta"
             onClick={() => navigate('/stories/new')}
           >
-            ✨ Create New Story
+            ✨ {t('create_new_story')}
           </button>
           <button
             type="button"
             className="button button-secondary"
             onClick={() => navigate('/stories')}
           >
-            📚 View All Stories ({stories.length})
+            📚 {t('view_all_stories')} ({stories.length})
           </button>
           <button
             type="button"
             className="button button-secondary"
             onClick={handleSignOut}
           >
-            🚪 Sign Out
+            🚪 {t('sign_out')}
           </button>
         </div>
       </section>
@@ -93,9 +93,9 @@ export function DashboardPage() {
       <section className="dashboard-recent" aria-label="Recent Stories">
         <div className="dashboard-section-header">
           <div className="dashboard-section-header__title">
-            <h3>Recent Stories</h3>
+            <h3>{t('recent_stories')}</h3>
             <span className="dashboard-section-header__sub">
-              Continue reading where you left off
+              {t('continue_reading_sub')}
             </span>
           </div>
           {stories.length > 0 ? (
@@ -104,7 +104,7 @@ export function DashboardPage() {
               className="button button-secondary dashboard-view-all-btn"
               onClick={() => navigate('/stories')}
             >
-              See All Stories →
+              {t('see_all_stories')}
             </button>
           ) : null}
         </div>
@@ -112,7 +112,7 @@ export function DashboardPage() {
         {isLoadingStories ? (
           <div className="loading-state">
             <LoadingSpinner />
-            <p>Loading your recent stories…</p>
+            <p>{t('loading')}</p>
           </div>
         ) : stories.length > 0 ? (
           <div className="dashboard-story-grid" role="list">
@@ -147,7 +147,7 @@ export function DashboardPage() {
                     onClick={() => navigate(`/stories/${story.id}`)}
                     aria-label={`Open story: ${story.title}`}
                   >
-                    Open Story →
+                    {t('open_story')}
                   </button>
                 </div>
               </article>
@@ -156,15 +156,15 @@ export function DashboardPage() {
         ) : (
           <EmptyState
             icon="🌟"
-            title="No stories yet"
-            description="Your storytelling journey begins here. Create your first personalized children's story in seconds."
+            title={t('no_stories_yet')}
+            description={t('no_stories_desc')}
             action={
               <button
                 type="button"
                 className="button button-primary"
                 onClick={() => navigate('/stories/new')}
               >
-                ✨ Create First Story
+                ✨ {t('create_first_story')}
               </button>
             }
           />

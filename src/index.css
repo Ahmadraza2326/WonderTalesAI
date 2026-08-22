@@ -57,9 +57,11 @@
 
   /* Touch & Mobile Targets */
   --touch-target-min: 44px;
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
+  color-scheme: dark;
   /* Brand Palette (Dark Theme - Cozy Midnight Bedtime Mode) */
   --accent: #9d8dfd;
   --accent-hover: #b0a4ff;
@@ -88,10 +90,30 @@
   --shadow-glow: 0 0 28px rgba(157, 141, 253, 0.32);
 }
 
+select {
+  color-scheme: light dark;
+}
+
+[data-theme='dark'] select {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #1e1b4b;
+}
+
+:root[data-theme='dark'] select option,
+[data-theme='dark'] select option {
+  background-color: #191a35;
+  color: #f8f7ff;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
+
 
 html {
   scroll-behavior: smooth;

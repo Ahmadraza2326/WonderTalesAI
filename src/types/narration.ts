@@ -9,6 +9,8 @@ export interface NarrationSegment {
 
   audioUrl?: string
 
+  audioPath?: string | null
+
   duration?: number
 }
 

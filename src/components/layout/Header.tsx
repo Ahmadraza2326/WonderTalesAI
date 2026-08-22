@@ -1,23 +1,25 @@
 import { NavLink } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { useAuth } from '../../context/AuthContext'
+import { useI18n } from '../../context/I18nContext'
 
 type HeaderProps = {
   theme: 'light' | 'dark'
   toggleTheme: () => void
 }
 
-const desktopLinks = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/stories/new', label: 'Create Story' },
-  { to: '/stories', label: 'My Stories' },
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/profile', label: 'Profile' },
-  { to: '/settings', label: 'Settings' },
-]
-
 export function Header({ theme, toggleTheme }: HeaderProps) {
   const { user } = useAuth()
+  const { t } = useI18n()
+
+  const desktopLinks = [
+    { to: '/', label: t('home'), end: true },
+    { to: '/stories/new', label: t('create_story') },
+    { to: '/stories', label: t('my_stories') },
+    { to: '/dashboard', label: t('workspace') },
+    { to: '/profile', label: t('profile') },
+    { to: '/settings', label: t('settings') },
+  ]
 
   return (
     <header className="site-header">
@@ -55,7 +57,7 @@ export function Header({ theme, toggleTheme }: HeaderProps) {
 
         {!user ? (
           <NavLink to="/auth" className="button button-primary header-auth-link">
-            Sign In
+            {t('sign_in')}
           </NavLink>
         ) : null}
       </div>

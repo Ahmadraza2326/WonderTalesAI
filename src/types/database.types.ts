@@ -17,30 +17,42 @@ export type Database = {
       child_profiles: {
         Row: {
           age: number | null
+          avatar: string | null
           created_at: string | null
+          favorite_theme: string | null
           id: string
           interests: string[] | null
           name: string
           parent_id: string | null
+          preferred_language: string | null
           reading_level: string | null
+          updated_at: string | null
         }
         Insert: {
           age?: number | null
+          avatar?: string | null
           created_at?: string | null
+          favorite_theme?: string | null
           id?: string
           interests?: string[] | null
           name: string
           parent_id?: string | null
+          preferred_language?: string | null
           reading_level?: string | null
+          updated_at?: string | null
         }
         Update: {
           age?: number | null
+          avatar?: string | null
           created_at?: string | null
+          favorite_theme?: string | null
           id?: string
           interests?: string[] | null
           name?: string
           parent_id?: string | null
+          preferred_language?: string | null
           reading_level?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -85,6 +97,7 @@ export type Database = {
           generated_at: string | null
           generation_status: string | null
           id: string
+          is_favorite: boolean
           language: string
           learning_package: Json | null
           moral: string | null
@@ -105,6 +118,7 @@ export type Database = {
           generated_at?: string | null
           generation_status?: string | null
           id?: string
+          is_favorite?: boolean
           language: string
           learning_package?: Json | null
           moral?: string | null
@@ -125,6 +139,7 @@ export type Database = {
           generated_at?: string | null
           generation_status?: string | null
           id?: string
+          is_favorite?: boolean
           language?: string
           learning_package?: Json | null
           moral?: string | null
@@ -138,6 +153,89 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      story_reading_progress: {
+        Row: {
+          child_id: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          listened_audio: boolean
+          pages_read: number
+          reading_time_seconds: number
+          story_id: string
+          total_pages: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          child_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          listened_audio?: boolean
+          pages_read?: number
+          reading_time_seconds?: number
+          story_id: string
+          total_pages?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          child_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          listened_audio?: boolean
+          pages_read?: number
+          reading_time_seconds?: number
+          story_id?: string
+          total_pages?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      story_translations: {
+        Row: {
+          created_at: string
+          id: string
+          story_id: string
+          target_locale: string
+          translated_content: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          story_id: string
+          target_locale: string
+          translated_content: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          story_id?: string
+          target_locale?: string
+          translated_content?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_translations_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
