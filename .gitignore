@@ -31,3 +31,7 @@ dist-ssr
 supabase/.temp/
 install.cmd
 .continue/
+
+# Local TTS/scratch environments and generated audio
+scratch/
+*.wav
