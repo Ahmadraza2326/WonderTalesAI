@@ -15,6 +15,14 @@ const StoryWorkspacePage = lazy(() => import('../pages/StoryWorkspacePage').then
 const StoryLibraryPage = lazy(() => import('../pages/StoryLibraryPage').then((m) => ({ default: m.StoryLibraryPage })))
 const ProfilePage = lazy(() => import('../pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const ParentZonePage = lazy(() => import('../pages/ParentZonePage').then((m) => ({ default: m.ParentZonePage })))
+const GameUniversePage = lazy(() => import('../pages/GameUniversePage').then((m) => ({ default: m.GameUniversePage })))
+const CreatureLabPage = lazy(() => import('../pages/CreatureLabPage').then((m) => ({ default: m.CreatureLabPage })))
+const MagicMachinePage = lazy(() => import('../pages/MagicMachinePage').then((m) => ({ default: m.MagicMachinePage })))
+const MysteryDetectivePage = lazy(() => import('../pages/MysteryDetectivePage').then((m) => ({ default: m.MysteryDetectivePage })))
+const PotionScalesPage = lazy(() => import('../pages/PotionScalesPage').then((m) => ({ default: m.PotionScalesPage })))
+const PassportPage = lazy(() => import('../pages/PassportPage').then((m) => ({ default: m.PassportPage })))
+const OverworldPage = lazy(() => import('../pages/OverworldPage').then((m) => ({ default: m.OverworldPage })))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export function AppRouter() {
@@ -30,9 +38,22 @@ export function AppRouter() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/overworld" element={<OverworldPage />} />
               <Route path="/stories/new" element={<CreateStoryPage />} />
               <Route path="/stories/:id" element={<StoryWorkspacePage />} />
               <Route path="/stories" element={<StoryLibraryPage />} />
+              <Route path="/parent-zone" element={<ParentZonePage />} />
+              <Route path="/games" element={<GameUniversePage />} />
+              <Route path="/playroom" element={<GameUniversePage />} />
+              <Route path="/games/creature-lab" element={<CreatureLabPage />} />
+              <Route path="/games/magic-machine" element={<MagicMachinePage />} />
+              <Route path="/playroom/magic-machine" element={<MagicMachinePage />} />
+              <Route path="/games/mystery-detective" element={<MysteryDetectivePage />} />
+              <Route path="/playroom/mystery-detective" element={<MysteryDetectivePage />} />
+              <Route path="/games/potion-scales" element={<PotionScalesPage />} />
+              <Route path="/playroom/potion-scales" element={<PotionScalesPage />} />
+              <Route path="/passport" element={<PassportPage />} />
+              <Route path="/adventure-passport" element={<PassportPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

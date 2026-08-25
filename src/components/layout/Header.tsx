@@ -14,8 +14,12 @@ export function Header({ theme, toggleTheme }: HeaderProps) {
 
   const desktopLinks = [
     { to: '/', label: t('home'), end: true },
+    { to: '/overworld', label: '🗺️ Map' },
+    { to: '/games', label: '🪐 Games' },
+    { to: '/passport', label: '🧭 Passport' },
     { to: '/stories/new', label: t('create_story') },
     { to: '/stories', label: t('my_stories') },
+    { to: '/parent-zone', label: '👨‍👩‍👧 Parent Zone' },
     { to: '/dashboard', label: t('workspace') },
     { to: '/profile', label: t('profile') },
     { to: '/settings', label: t('settings') },

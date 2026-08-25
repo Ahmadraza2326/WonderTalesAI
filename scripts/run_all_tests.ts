@@ -28,10 +28,29 @@ const suites = [
   'scripts/test_phase8j_gemini_tts_production_narration.ts',
   'scripts/verify_live_acceptance_tts_playback.ts',
   'scripts/test_edge_function_security_audit.ts',
+  'scripts/test_activity_reward_foundation.ts',
+  'scripts/test_story_memory_quest.ts',
+  'scripts/test_word_trace.ts',
+  'scripts/test_experience_foundation.ts',
+  'scripts/test_experience_primitives.ts',
+  'scripts/test_experience_activity_refactoring.ts',
+  'scripts/test_experience_quest_hub.ts',
+  'scripts/test_creature_lab.ts',
+  'scripts/test_playground_registry.ts',
+  'scripts/test_magic_machine.ts',
+  'scripts/test_mystery_detective.ts',
+  'scripts/test_potion_scales.ts',
+  'scripts/test_progression_service.ts',
+  'scripts/test_playroom_world.ts',
+  'scripts/test_child_adventure_passport.ts',
+  'scripts/test_story_game_bridge.ts',
+  'scripts/test_procedural_challenge.ts',
+  'scripts/test_overworld_and_mascot.ts',
+  'scripts/test_parent_hub_and_narration.ts',
 ]
 
 console.log('==================================================================')
-console.log('🚀 RUNNING ALL 21 ORBIS VERIFICATION & REGRESSION TEST SUITES')
+console.log(`🚀 RUNNING ALL ${suites.length} ORBIS VERIFICATION & REGRESSION TEST SUITES`)
 console.log('==================================================================\n')
 
 let passedSuites = 0

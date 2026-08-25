@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useChildProfiles } from '../../hooks/useChildProfiles'
 import { useI18n } from '../../context/I18nContext'
 import { ChildProfileCard } from '../profile/ChildProfileCard'
 import { AddChildModal } from '../profile/AddChildModal'
 import type { ChildProfile } from '../../types/childProfile'
+import { getUnlockedStorySeeds, type StorySeedPrompt } from '../../services/worldRecommendationService'
+import { sfxService } from '../../services/audio/sfxService'
 
 export type StoryFormValues = {
+  childId?: string | null
   title: string
   childName: string
   childAge: string
@@ -27,6 +30,7 @@ type StoryFormProps = {
 }
 
 const initialValues: StoryFormValues = {
+  childId: null,
   title: '',
   childName: '',
   childAge: '6',
@@ -194,6 +198,7 @@ export function StoryForm({
 
     setValues((current) => ({
       ...current,
+      childId: profile.id,
       childName: profile.name,
       childAge: String(profile.age),
       readingLevel: profile.reading_level || current.readingLevel,
@@ -230,6 +235,51 @@ export function StoryForm({
     const childName = values.childName.trim() || 'Hero'
     const newCharacters = `${childName} and ${companion.avatar} ${companion.name} (${companion.tagline.toLowerCase()})`
     setValues((current) => ({ ...current, characters: newCharacters }))
+  }
+
+  // Playroom Unlocked Story Seeds
+  const storySeeds = useMemo(() => {
+    let creatureCount = 3
+    let machineCount = 3
+    let detectiveCount = 2
+    let potionCount = 3
+
+    if (typeof window !== 'undefined' && window.localStorage && selectedProfileId) {
+      try {
+        const savedCreatures = window.localStorage.getItem(`orbis_creature_lab_discovered_${selectedProfileId}`)
+        if (savedCreatures) creatureCount = JSON.parse(savedCreatures).length
+
+        const savedMachines = window.localStorage.getItem(`orbis_magic_machine_completed_${selectedProfileId}`)
+        if (savedMachines) machineCount = JSON.parse(savedMachines).length
+
+        const savedDetective = window.localStorage.getItem(`orbis_mystery_detective_solved_${selectedProfileId}`)
+        if (savedDetective) detectiveCount = JSON.parse(savedDetective).length
+
+        const savedPotions = window.localStorage.getItem(`orbis_potion_scales_completed_${selectedProfileId}`)
+        if (savedPotions) potionCount = JSON.parse(savedPotions).length
+      } catch {
+        // Safe fallback
+      }
+    }
+
+    return getUnlockedStorySeeds({
+      creatureDiscoveriesCount: creatureCount,
+      machineCompletedCount: machineCount,
+      detectiveSolvedCount: detectiveCount,
+      potionBrewedCount: potionCount,
+    })
+  }, [selectedProfileId])
+
+  function handleSelectSeed(seed: StorySeedPrompt) {
+    sfxService.play('star_pop')
+    setValues((current) => ({
+      ...current,
+      title: seed.title,
+      theme: seed.theme,
+      characters: seed.character,
+      moral: seed.moral,
+    }))
+    setErrors({})
   }
 
   function handleSelectWorld(world: WorldPreset) {
@@ -509,6 +559,58 @@ export function StoryForm({
           </div>
 
           <div className="form-grid">
+            {/* Playroom Discovery Story Seeds */}
+            <div className="field-group full-width">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🪐</span>
+                <span>Unlocked Playroom Story Seeds</span>
+                <span style={{ fontSize: '11px', color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '2px 8px', borderRadius: '9999px', fontWeight: 800 }}>
+                  Game Bridge
+                </span>
+              </label>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '10px',
+                  marginBottom: '1rem',
+                }}
+              >
+                {storySeeds.map((seed) => (
+                  <button
+                    type="button"
+                    key={seed.id}
+                    onClick={() => handleSelectSeed(seed)}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '12px',
+                      border: values.title === seed.title
+                        ? '2px solid #a855f7'
+                        : '1px solid rgba(168, 85, 247, 0.2)',
+                      background: values.title === seed.title
+                        ? 'rgba(168, 85, 247, 0.2)'
+                        : 'rgba(30, 41, 59, 0.5)',
+                      color: '#ffffff',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '20px' }}>{seed.emoji}</span>
+                      <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 800 }}>
+                        {seed.isUnlocked ? '✓ UNLOCKED' : '🔒 DISCOVER'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc' }}>{seed.title}</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{seed.unlockedByLabel}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="field-group full-width">
               <label>{t('choose_world')}</label>
               <div className="world-grid" role="group" aria-label="Story World Options">

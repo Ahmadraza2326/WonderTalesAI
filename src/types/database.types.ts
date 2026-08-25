@@ -27,6 +27,10 @@ export type Database = {
           preferred_language: string | null
           reading_level: string | null
           updated_at: string | null
+          xp: number
+          stars: number
+          current_streak: number
+          last_activity_date: string | null
         }
         Insert: {
           age?: number | null
@@ -40,6 +44,10 @@ export type Database = {
           preferred_language?: string | null
           reading_level?: string | null
           updated_at?: string | null
+          xp?: number
+          stars?: number
+          current_streak?: number
+          last_activity_date?: string | null
         }
         Update: {
           age?: number | null
@@ -53,6 +61,10 @@ export type Database = {
           preferred_language?: string | null
           reading_level?: string | null
           updated_at?: string | null
+          xp?: number
+          stars?: number
+          current_streak?: number
+          last_activity_date?: string | null
         }
         Relationships: [
           {
@@ -60,6 +72,44 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_activity_rewards: {
+        Row: {
+          activity_id: string
+          activity_type: string
+          child_id: string
+          created_at: string
+          id: string
+          stars_awarded: number
+          xp_awarded: number
+        }
+        Insert: {
+          activity_id: string
+          activity_type: string
+          child_id: string
+          created_at?: string
+          id?: string
+          stars_awarded?: number
+          xp_awarded?: number
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string
+          child_id?: string
+          created_at?: string
+          id?: string
+          stars_awarded?: number
+          xp_awarded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_activity_rewards_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -92,6 +142,7 @@ export type Database = {
         Row: {
           characters: string | null
           child_age: number
+          child_id?: string | null
           child_name: string
           created_at: string
           generated_at: string | null
@@ -114,6 +165,7 @@ export type Database = {
           characters?: string | null
           child_age: number
           child_name: string
+          child_id?: string | null
           created_at?: string
           generated_at?: string | null
           generation_status?: string | null
@@ -135,6 +187,7 @@ export type Database = {
           characters?: string | null
           child_age?: number
           child_name?: string
+          child_id?: string | null
           created_at?: string
           generated_at?: string | null
           generation_status?: string | null
@@ -242,7 +295,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      award_child_rewards: {
+        Args: {
+          p_child_id: string
+          p_activity_type: string
+          p_activity_id: string
+          p_xp_amount?: number
+          p_stars_amount?: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

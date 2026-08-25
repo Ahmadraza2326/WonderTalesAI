@@ -16,6 +16,10 @@ export interface ChildProfile {
   favorite_theme?: string | null
   created_at?: string | null
   updated_at?: string | null
+  xp: number
+  stars: number
+  current_streak: number
+  last_activity_date?: string | null
 }
 
 export interface CreateChildProfileInput {

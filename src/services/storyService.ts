@@ -6,6 +6,7 @@ type StoryUpdate = Database['public']['Tables']['stories']['Update']
 
 export const storyService = {
   async createStory(userId: string, values: {
+    childId?: string | null
     title: string
     childName: string
     childAge: number | string
@@ -31,6 +32,7 @@ export const storyService = {
 
     const insertData: StoryInsert = {
       user_id: userId,
+      child_id: values.childId ?? null,
       title: values.title,
       child_name: values.childName,
       child_age: age,

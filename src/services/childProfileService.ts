@@ -119,6 +119,10 @@ export function mapRowToChildProfile(row: ChildProfileRow): ChildProfile {
     avatar: row.avatar || '🌟',
     preferred_language: row.preferred_language || 'English',
     favorite_theme: row.favorite_theme ?? null,
+    xp: row.xp ?? 0,
+    stars: row.stars ?? 0,
+    current_streak: row.current_streak ?? 0,
+    last_activity_date: row.last_activity_date ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

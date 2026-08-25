@@ -6,6 +6,7 @@ type StoryRow = Database['public']['Tables']['stories']['Row']
 export interface StoryRecord {
   id: StoryRow['id']
   user_id: StoryRow['user_id']
+  child_id?: string | null
   title: StoryRow['title']
   child_name: StoryRow['child_name']
   child_age: StoryRow['child_age']

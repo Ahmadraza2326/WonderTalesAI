@@ -1,4 +1,4 @@
-# Logs
+# Logs & Process Artifacts
 logs
 *.log
 npm-debug.log*
@@ -7,31 +7,47 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-ssr/
+build/
+.turbo/
 *.local
 
-# Editor directories and files
+# Environment Variables & Sensitive Credentials
+.env
+.env.local
+.env.*.local
+.env.*
+*.env
+*secret*
+*credential*
+!*.example
+
+# Editor & OS Files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
-.env.local
-.env.*.local
-.env.*
-!.env.example
 
+# Supabase & Local Caches
 supabase/.temp/
 install.cmd
 .continue/
-
-# Local TTS/scratch environments and generated audio
 scratch/
 *.wav
+
+# Android Native Build Outputs, Caches & Signing Keys
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+.gradle/
+*.keystore
+*.jks

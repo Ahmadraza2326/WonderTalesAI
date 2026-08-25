@@ -19,7 +19,7 @@ export async function generateStoryNarration(
 
   let voiceProvider = provider
   if (!voiceProvider) {
-    if (import.meta.env.VITE_TTS_PROVIDER === 'piper') {
+    if (import.meta.env?.VITE_TTS_PROVIDER === 'piper') {
       voiceProvider = new PiperVoiceProvider()
     } else {
       voiceProvider = new OrbisVoiceProvider()

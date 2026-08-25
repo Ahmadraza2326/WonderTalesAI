@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Header } from './Header'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
+import { OrbyCompanion } from '../companion/OrbyCompanion'
 import { useI18n } from '../../context/I18nContext'
 
 type AppShellProps = {
@@ -22,6 +23,7 @@ export function AppShell({ children, theme, toggleTheme }: AppShellProps) {
       <main id="main-content" className="main-content" tabIndex={-1}>
         {children}
       </main>
+      <OrbyCompanion />
       <Footer />
       <MobileBottomNav />
     </div>

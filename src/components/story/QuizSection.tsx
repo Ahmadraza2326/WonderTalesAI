@@ -1,6 +1,10 @@
 import { memo, useState } from 'react'
 import type { StoryRecord } from '../../types/story'
 import type { QuizSeed } from '../../services/ai/learningPackage'
+import { useActivityEconomy } from '../../hooks/useActivityEconomy'
+import { sfxService } from '../../services/audio/sfxService'
+import { ActivityShell } from '../experience/ActivityShell'
+import { RewardCelebration } from '../experience/RewardCelebration'
 
 interface QuizSectionProps {
   story: StoryRecord
@@ -10,6 +14,14 @@ export const QuizSection = memo(function QuizSection({
   story,
 }: QuizSectionProps) {
   const quiz = story.learning_package?.quizSeeds
+  const activeChildId = story.child_id || null
+
+  const { isCompleted, rewardStatus, completeActivity, resetActivity } =
+    useActivityEconomy({
+      childId: activeChildId,
+      activityType: 'quiz',
+      activityId: story.id,
+    })
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
@@ -17,10 +29,21 @@ export const QuizSection = memo(function QuizSection({
   const [answeredQuestions, setAnsweredQuestions] = useState<
     Record<number, { selected: string; isCorrect: boolean }>
   >({})
-  const [isCompleted, setIsCompleted] = useState(false)
 
   if (!quiz || !Array.isArray(quiz) || quiz.length === 0) {
-    return null
+    return (
+      <ActivityShell
+        title="Story Quiz"
+        emoji="📝"
+        primaryDomain="comprehension"
+        secondaryDomains={['memory']}
+        supportsDifficulty={false}
+        isPlayable={false}
+        unavailableReason="Quiz is not available for this story."
+      >
+        <div />
+      </ActivityShell>
+    )
   }
 
   const currentQuestion: QuizSeed | undefined = quiz[currentIndex]
@@ -31,11 +54,12 @@ export const QuizSection = memo(function QuizSection({
 
   const totalQuestions = quiz.length
   const correctCount = Object.values(answeredQuestions).filter(
-    a => a.isCorrect
+    (a) => a.isCorrect
   ).length
 
   const handleSelectOption = (option: string) => {
     if (isSubmitted) return
+    sfxService.play('card_flip')
     setSelectedOption(option)
   }
 
@@ -49,7 +73,13 @@ export const QuizSection = memo(function QuizSection({
       normalizedAnswer.includes(normalizedSelected) ||
       normalizedSelected.includes(normalizedAnswer)
 
-    setAnsweredQuestions(prev => ({
+    if (isCorrect) {
+      sfxService.play('match_success')
+    } else {
+      sfxService.play('mistake_soft')
+    }
+
+    setAnsweredQuestions((prev) => ({
       ...prev,
       [currentIndex]: { selected: selectedOption, isCorrect },
     }))
@@ -58,62 +88,73 @@ export const QuizSection = memo(function QuizSection({
 
   const handleNext = () => {
     if (currentIndex + 1 < totalQuestions) {
+      sfxService.play('card_flip')
       setCurrentIndex(currentIndex + 1)
       setSelectedOption(null)
       setIsSubmitted(false)
     } else {
-      setIsCompleted(true)
+      // Calculate final quiz score
+      const correctAnswers = Object.values(answeredQuestions).filter(
+        (a) => a.isCorrect
+      ).length
+
+      const currentIsCorrect = (() => {
+        if (!selectedOption || !currentQuestion) return false
+        const normalizedSelected = selectedOption.trim().toLowerCase()
+        const normalizedAnswer = currentQuestion.answer.trim().toLowerCase()
+        return (
+          normalizedSelected === normalizedAnswer ||
+          normalizedAnswer.includes(normalizedSelected) ||
+          normalizedSelected.includes(normalizedAnswer)
+        )
+      })()
+
+      const finalCorrectCount = correctAnswers + (currentIsCorrect ? 1 : 0)
+      const xpAmount = finalCorrectCount * 10
+      const starsAmount = finalCorrectCount * 5
+
+      // Complete activity via the unified Experience Layer economy bridge
+      completeActivity({ xpAmount, starsAmount })
     }
   }
 
   const handleRestart = () => {
+    resetActivity()
     setCurrentIndex(0)
     setSelectedOption(null)
     setIsSubmitted(false)
     setAnsweredQuestions({})
-    setIsCompleted(false)
   }
 
-  return (
-    <section className="card-panel">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1rem',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-        }}
-      >
-        <h3 style={{ margin: 0 }}>📝 Story Quiz</h3>
-        <span
-          className="card-pill"
-          style={{ margin: 0 }}
-        >
-          {isCompleted
-            ? 'Quiz Completed'
-            : `Question ${currentIndex + 1} of ${totalQuestions}`}
-        </span>
-      </div>
+  const accuracy = Math.round((correctCount / totalQuestions) * 100)
 
+  return (
+    <ActivityShell
+      title="Story Quiz"
+      emoji="📝"
+      tagline="Test your comprehension and recall of the story!"
+      primaryDomain="comprehension"
+      secondaryDomains={['memory']}
+      supportsDifficulty={false}
+      progressInfo={
+        isCompleted
+          ? 'Quiz Completed'
+          : `Question ${currentIndex + 1} of ${totalQuestions}`
+      }
+      isPlayable={true}
+    >
       {isCompleted ? (
-        <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
-          <h4 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>
-            🎉 Great Job!
-          </h4>
-          <p style={{ fontSize: '1.1rem', marginBottom: '1.25rem' }}>
-            You got <strong>{correctCount}</strong> out of{' '}
-            <strong>{totalQuestions}</strong> questions correct!
-          </p>
-          <button
-            type="button"
-            className="button button-primary"
-            onClick={handleRestart}
-          >
-            Retake Quiz
-          </button>
-        </div>
+        <RewardCelebration
+          title="🎉 Great Job!"
+          message={`You answered ${correctCount} out of ${totalQuestions} questions correctly!`}
+          accuracy={accuracy}
+          rewardStatus={rewardStatus}
+          statsSummary={[
+            { label: 'Score', value: `${correctCount}/${totalQuestions}` },
+          ]}
+          onPrimaryAction={handleRestart}
+          primaryActionLabel="Retake Quiz 🔄"
+        />
       ) : (
         <div>
           <h4
@@ -250,7 +291,13 @@ export const QuizSection = memo(function QuizSection({
             </div>
           ) : null}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.5rem',
+            }}
+          >
             {!isSubmitted ? (
               <button
                 type="button"
@@ -266,12 +313,14 @@ export const QuizSection = memo(function QuizSection({
                 className="button button-primary"
                 onClick={handleNext}
               >
-                {currentIndex + 1 < totalQuestions ? 'Next Question →' : 'See Results ✨'}
+                {currentIndex + 1 < totalQuestions
+                  ? 'Next Question →'
+                  : 'See Results ✨'}
               </button>
             )}
           </div>
         </div>
       )}
-    </section>
+    </ActivityShell>
   )
 })

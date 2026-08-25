@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ORBis Kids Universe</string>
+    <string name="title_activity_main">ORBis Kids Universe</string>
+    <string name="package_name">com.orbis.kidsapp</string>
+    <string name="custom_url_scheme">com.orbis.kidsapp</string>
+</resources>
