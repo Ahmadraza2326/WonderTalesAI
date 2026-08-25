@@ -23,6 +23,7 @@ const MysteryDetectivePage = lazy(() => import('../pages/MysteryDetectivePage').
 const PotionScalesPage = lazy(() => import('../pages/PotionScalesPage').then((m) => ({ default: m.PotionScalesPage })))
 const PassportPage = lazy(() => import('../pages/PassportPage').then((m) => ({ default: m.PassportPage })))
 const OverworldPage = lazy(() => import('../pages/OverworldPage').then((m) => ({ default: m.OverworldPage })))
+const SanctuaryPage = lazy(() => import('../pages/SanctuaryPage').then((m) => ({ default: m.SanctuaryPage })))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export function AppRouter() {
@@ -46,6 +47,8 @@ export function AppRouter() {
               <Route path="/games" element={<GameUniversePage />} />
               <Route path="/playroom" element={<GameUniversePage />} />
               <Route path="/games/creature-lab" element={<CreatureLabPage />} />
+              <Route path="/sanctuary" element={<SanctuaryPage />} />
+              <Route path="/games/sanctuary" element={<SanctuaryPage />} />
               <Route path="/games/magic-machine" element={<MagicMachinePage />} />
               <Route path="/playroom/magic-machine" element={<MagicMachinePage />} />
               <Route path="/games/mystery-detective" element={<MysteryDetectivePage />} />

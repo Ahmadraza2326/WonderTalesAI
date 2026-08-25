@@ -47,6 +47,7 @@ const suites = [
   'scripts/test_procedural_challenge.ts',
   'scripts/test_overworld_and_mascot.ts',
   'scripts/test_parent_hub_and_narration.ts',
+  'scripts/test_creature_sanctuary.ts',
 ]
 
 console.log('==================================================================')

@@ -6492,3 +6492,35 @@ html[dir="rtl"] .filter-select {
     padding: 0 !important;
   }
 }
+
+/* ==========================================================================
+   LIVING CREATURE SANCTUARY ANIMATIONS
+   ========================================================================== */
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.8);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-24px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50px) scale(1);
+  }
+}
+
+.sanctuary-page-container {
+  animation: fadeIn 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .sanctuary-page-container {
+    padding: 16px 12px 60px;
+  }
+  .hide-on-mobile-sm {
+    display: none;
+  }
+}

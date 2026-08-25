@@ -16,6 +16,7 @@ export function Header({ theme, toggleTheme }: HeaderProps) {
     { to: '/', label: t('home'), end: true },
     { to: '/overworld', label: '🗺️ Map' },
     { to: '/games', label: '🪐 Games' },
+    { to: '/sanctuary', label: '🐾 Sanctuary' },
     { to: '/passport', label: '🧭 Passport' },
     { to: '/stories/new', label: t('create_story') },
     { to: '/stories', label: t('my_stories') },

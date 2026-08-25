@@ -33,6 +33,10 @@ export type SfxCue =
   | 'balance_near'
   | 'balance_success'
   | 'potion_complete'
+  | 'creature_pet'
+  | 'creature_feed'
+  | 'creature_purr'
+  | 'treat_pop'
 
 class SfxService {
   private audioCtx: AudioContext | null = null
@@ -239,6 +243,18 @@ class SfxService {
           break
         case 'potion_complete':
           this.synthesizePotionComplete(ctx, now)
+          break
+        case 'creature_pet':
+          this.synthesizeCreaturePet(ctx, now)
+          break
+        case 'creature_feed':
+          this.synthesizeCreatureFeed(ctx, now)
+          break
+        case 'creature_purr':
+          this.synthesizeCreaturePurr(ctx, now)
+          break
+        case 'treat_pop':
+          this.synthesizeTreatPop(ctx, now)
           break
         default:
           break
@@ -982,6 +998,111 @@ class SfxService {
       osc.start(t)
       osc.stop(t + 0.65)
     })
+  }
+
+  /**
+   * Creature pet: warm, gentle ascending heart chime (warm sine tones).
+   */
+  private synthesizeCreaturePet(ctx: AudioContext, now: number): void {
+    const notes = [440, 554.37, 659.25] // A4, C#5, E5
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.06
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.16)
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, t)
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.08, t + 0.18)
+
+      gain.gain.setValueAtTime(0.16 * this.masterVolume, t)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28)
+
+      osc.connect(gain)
+      osc.start(t)
+      osc.stop(t + 0.3)
+    })
+  }
+
+  /**
+   * Creature feed: crisp delicious crunch & sparkling ascending bell cascade.
+   */
+  private synthesizeCreatureFeed(ctx: AudioContext, now: number): void {
+    // Crunch pop
+    const osc1 = ctx.createOscillator()
+    const gain1 = this.createGain(ctx, 0.2)
+    osc1.type = 'triangle'
+    osc1.frequency.setValueAtTime(320, now)
+    osc1.frequency.exponentialRampToValueAtTime(140, now + 0.08)
+    gain1.gain.setValueAtTime(0.2 * this.masterVolume, now)
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+    osc1.connect(gain1)
+    osc1.start(now)
+    osc1.stop(now + 0.12)
+
+    // Sparkle chimes
+    const notes = [587.33, 739.99, 880, 1174.66] // D5, F#5, A5, D6
+    notes.forEach((freq, idx) => {
+      const t = now + 0.05 + idx * 0.06
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.15)
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, t)
+
+      gain.gain.setValueAtTime(0.15 * this.masterVolume, t)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35)
+
+      osc.connect(gain)
+      osc.start(t)
+      osc.stop(t + 0.4)
+    })
+  }
+
+  /**
+   * Creature purr: soothing, deep harmonic vibrato pulse.
+   */
+  private synthesizeCreaturePurr(ctx: AudioContext, now: number): void {
+    const osc = ctx.createOscillator()
+    const gain = this.createGain(ctx, 0.18)
+    const lfo = ctx.createOscillator()
+    const lfoGain = ctx.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(110, now) // A2 deep purr
+
+    lfo.type = 'sine'
+    lfo.frequency.setValueAtTime(25, now) // 25Hz purr flutter
+    lfoGain.gain.setValueAtTime(15, now)
+
+    lfo.connect(osc.frequency)
+
+    gain.gain.setValueAtTime(0.18 * this.masterVolume, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
+
+    osc.connect(gain)
+    lfo.start(now)
+    osc.start(now)
+    lfo.stop(now + 0.65)
+    osc.stop(now + 0.65)
+  }
+
+  /**
+   * Treat pop: cheerful, bouncy bubble pop.
+   */
+  private synthesizeTreatPop(ctx: AudioContext, now: number): void {
+    const osc = ctx.createOscillator()
+    const gain = this.createGain(ctx, 0.2)
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(380, now)
+    osc.frequency.exponentialRampToValueAtTime(820, now + 0.08)
+
+    gain.gain.setValueAtTime(0.2 * this.masterVolume, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.14)
   }
 }
 

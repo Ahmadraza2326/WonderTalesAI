@@ -42,6 +42,18 @@ export const OVERWORLD_NODES: OverworldNode[] = [
     description: 'Combine elemental essences to hatch mythical starlight dragons & sprites!',
   },
   {
+    id: 'node_sanctuary',
+    title: 'The Living Sanctuary',
+    subtitle: 'Creature Habitat & Nursery',
+    icon: '🐾',
+    route: '/sanctuary',
+    biome: 'canopy',
+    requiredLevel: 1,
+    requiredXp: 30,
+    starsReward: 15,
+    description: 'Pet, feed elemental treats, and bond with all your hatched starlight companions!',
+  },
+  {
     id: 'node_3_clockwork_valley',
     title: 'Gears of Momentum',
     subtitle: 'Magic Machine Lab',

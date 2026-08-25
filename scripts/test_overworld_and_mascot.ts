@@ -16,8 +16,8 @@ function assert(condition: boolean, message: string) {
 }
 
 // 1. Overworld Node Count & Progression
-console.log('1. Validating 10 Overworld Milestone Nodes...')
-assert(OVERWORLD_NODES.length === 10, `Has 10 milestone nodes (got ${OVERWORLD_NODES.length})`)
+console.log('1. Validating 11 Overworld Milestone Nodes...')
+assert(OVERWORLD_NODES.length === 11, `Has 11 milestone nodes (got ${OVERWORLD_NODES.length})`)
 
 const biomes = new Set(OVERWORLD_NODES.map((n) => n.biome))
 assert(biomes.has('canopy'), 'Includes Starlight Canopy biome')
@@ -48,16 +48,16 @@ assert(noviceUnlocked.length === 1, '0 XP unlocks exactly starting node')
 assert(noviceUnlocked[0].id === 'node_1_story_grove', 'First node is Story Grove')
 
 const apprenticeUnlocked = getUnlockedNodes(60)
-assert(apprenticeUnlocked.length === 3, '60 XP unlocks 3 nodes (Story, Creature Lab, Magic Machine)')
+assert(apprenticeUnlocked.length === 4, '60 XP unlocks 4 nodes (Story, Creature Lab, Sanctuary, Magic Machine)')
 
 const detectiveUnlocked = getUnlockedNodes(180)
-assert(detectiveUnlocked.length === 5, '180 XP unlocks 5 nodes through Detective Woods')
+assert(detectiveUnlocked.length === 6, '180 XP unlocks 6 nodes through Detective Woods')
 
 const masterUnlocked = getUnlockedNodes(350)
-assert(masterUnlocked.length === 7, '350 XP unlocks 7 nodes through Apothecary Hills')
+assert(masterUnlocked.length === 8, '350 XP unlocks 8 nodes through Apothecary Hills')
 
 const grandmasterUnlocked = getUnlockedNodes(800)
-assert(grandmasterUnlocked.length === 10, '800 XP unlocks all 10 nodes including Celestial Citadel')
+assert(grandmasterUnlocked.length === 11, '800 XP unlocks all 11 nodes including Celestial Citadel')
 
 console.log(`\n==================================================================`)
 if (failCount === 0) {
