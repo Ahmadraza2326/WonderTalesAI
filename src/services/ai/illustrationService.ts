@@ -1,9 +1,9 @@
 import type { StoryBook } from '../../types/storybook'
-
 import { ImageGenerationEngine } from './imageEngine/ImageGenerationEngine'
 import { ProviderManager } from './imageEngine/ProviderManager'
 import type { StoryDNA } from './storyDNA'
 import type { IllustrationPrompt } from './illustrationPromptGenerator'
+import { storyAssetCacheService } from '../storyAssetCacheService'
 
 export async function generateIllustrations(
   storyBook: StoryBook,
@@ -12,33 +12,44 @@ export async function generateIllustrations(
   const providerManager = new ProviderManager()
   const imageEngine = new ImageGenerationEngine(providerManager)
 
-    const prompts: IllustrationPrompt[] = storyBook.pages
-    .filter(page => page.illustrationPrompt)
-    .map(page => ({
-      scene: page.pageNumber,
-      title: 'Page ' + page.pageNumber,
-      prompt: page.illustrationPrompt || '',
-    }))
+  // 1. Check prompt-level cache first
+  const missingPrompts: IllustrationPrompt[] = []
 
-    const result = await imageEngine.generate({ prompts })
+  for (const page of storyBook.pages) {
+    if (page.illustrationPrompt) {
+      const cachedUrl = await storyAssetCacheService.getCachedIllustration(page.illustrationPrompt)
+      if (cachedUrl) {
+        page.illustrationUrl = cachedUrl
+      } else {
+        missingPrompts.push({
+          scene: page.pageNumber,
+          title: 'Page ' + page.pageNumber,
+          prompt: page.illustrationPrompt,
+        })
+      }
+    }
+  }
 
-    console.log(`[3] illustrationService.generateIllustrations - result.illustrations:`, JSON.stringify(result.illustrations, null, 2));
-
-    storyBook.pages = storyBook.pages.map(page => {
-      const illustration = result.illustrations.find(
-        image => image.scene === page.pageNumber
-      );
-      const resultObj = {
-        ...page,
-        illustrationUrl:
-          illustration?.imageUrl ??
-          page.illustrationUrl ??
-          ''
-      };
-      return resultObj;
-    });
-
-        console.log(`[3] illustrationService.generateIllustrations - updated pages:`, JSON.stringify(storyBook.pages, null, 2));
-
+  // 2. If all illustrations were cached, return immediately
+  if (missingPrompts.length === 0) {
     return storyBook
+  }
+
+  // 3. Generate only uncached prompts
+  const result = await imageEngine.generate({ prompts: missingPrompts })
+
+  storyBook.pages = storyBook.pages.map(page => {
+    const illustration = result.illustrations.find(
+      image => image.scene === page.pageNumber
+    )
+    return {
+      ...page,
+      illustrationUrl:
+        illustration?.imageUrl ??
+        page.illustrationUrl ??
+        '',
+    }
+  })
+
+  return storyBook
 }

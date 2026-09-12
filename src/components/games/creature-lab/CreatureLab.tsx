@@ -24,6 +24,7 @@ import { AlmanacDrawer } from './AlmanacDrawer'
 interface CreatureLabProps {
   childId?: string
   childName?: string
+  explorerLevel?: number
   storyContext?: {
     storyId: string
     storyTitle: string
@@ -34,6 +35,7 @@ interface CreatureLabProps {
 export const CreatureLab: React.FC<CreatureLabProps> = ({
   childId,
   childName = 'Explorer',
+  explorerLevel = 1,
   storyContext,
   onBack,
 }) => {
@@ -207,7 +209,12 @@ export const CreatureLab: React.FC<CreatureLabProps> = ({
       setCauldronState('revealing')
 
       const essenceIds = selectedEssences.map((e) => e.id)
-      const result = evaluateBrew(essenceIds, discoveredIds, Date.now())
+      const result = evaluateBrew(essenceIds, discoveredIds, {
+        seed: Date.now(),
+        childId: currentProfile,
+        explorerLevel,
+        dateKey: new Date().toISOString().slice(0, 10),
+      })
 
       if (result.type === 'creature' && result.creature) {
         setPendingCreatureForReward(result.creature)
@@ -277,12 +284,13 @@ export const CreatureLab: React.FC<CreatureLabProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100%',
+        height: '100%',
+        maxHeight: '100%',
         width: '100%',
         background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 70%, #090d16 100%)',
         color: '#ffffff',
         position: 'relative',
-        overflowX: 'hidden',
+        overflow: 'hidden',
         userSelect: 'none',
       }}
       aria-label="Creature Lab Alchemical Discovery"
@@ -365,6 +373,51 @@ export const CreatureLab: React.FC<CreatureLabProps> = ({
             <span>
               Brewing companion essences inspired by: <strong>{storyContext.storyTitle}</strong>
             </span>
+          </div>
+        )}
+
+        {/* First-Turn Animated Hand Tutorial Prompt */}
+        {selectedEssences.length === 0 && cauldronState === 'idle' && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%)',
+              border: '1.5px solid #fbbf24',
+              borderRadius: '9999px',
+              padding: '6px 16px',
+              color: '#fef08a',
+              fontSize: '13px',
+              fontWeight: 800,
+              marginBottom: '8px',
+              animation: 'bounceGentle 2s infinite',
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>👇</span>
+            <span>Tap 2 or 3 essence jars from the shelf below to add to the cauldron!</span>
+          </div>
+        )}
+
+        {selectedEssences.length >= 2 && cauldronState === 'idle' && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(56, 189, 248, 0.25) 100%)',
+              border: '1.5px solid #34d399',
+              borderRadius: '9999px',
+              padding: '6px 16px',
+              color: '#a7f3d0',
+              fontSize: '13px',
+              fontWeight: 800,
+              marginBottom: '8px',
+              animation: 'pulse 1.5s infinite',
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>✨</span>
+            <span>Cauldron ready! Tap "Stir Magic Cauldron" to hatch!</span>
           </div>
         )}
 

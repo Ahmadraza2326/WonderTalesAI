@@ -3,6 +3,7 @@ import type {
   InvestigationTool,
   Suspect,
   Clue,
+  Hotspot,
   DetectiveCase,
   DetectiveInvestigationState,
   DetectiveAction,
@@ -1471,27 +1472,251 @@ function createPRNG(seed: string | number) {
 }
 
 /**
+ * Procedural Mystery Case Themes
+ */
+const PROCEDURAL_THEMES = [
+  {
+    location: 'Celestial Starlight Observatory',
+    locationEmoji: '🔭',
+    victim: 'Professor Hoot',
+    victimEmoji: '🦉',
+    item: 'The Ancient Astral Star-Chart',
+    itemEmoji: '📜',
+    intro: 'During the midnight meteor shower, the star chart vanished from the telescope podium!',
+    concept: {
+      title: 'Optics & Light Refraction',
+      description: 'Lenses bend light rays to magnify tiny details and reveal invisible ink patterns.',
+      funFact: 'Telescopes use curved glass mirrors to gather starlight from billions of miles away!',
+    },
+  },
+  {
+    location: 'Whispering Honeycomb Bakery',
+    locationEmoji: '🍯',
+    victim: 'Barnaby Bear',
+    victimEmoji: '🐻',
+    item: 'The Golden Royal Honey Tart',
+    itemEmoji: '🥧',
+    intro: 'Just as the golden glaze was cooling on the windowsill, someone whisked away the prize tart!',
+    concept: {
+      title: 'Aroma Chemistry & Olfaction',
+      description: 'Sweet honey scents travel through air molecules that tickle olfactory receptors in the nose.',
+      funFact: 'Bears have a sense of smell seven times stronger than a bloodhound!',
+    },
+  },
+  {
+    location: 'Clockwork Automaton Workshop',
+    locationEmoji: '⚙️',
+    victim: 'Orby the Clockwork Owl',
+    victimEmoji: '🤖',
+    item: 'The Master Chrono-Spring',
+    itemEmoji: '🗝️',
+    intro: 'The heart-gear of the great grandfather clock was borrowed from the workbench!',
+    concept: {
+      title: 'Acoustic Resonance & Sound Waves',
+      description: 'Ticking gears create sound vibrations that travel through solid wood and metallic tables.',
+      funFact: 'Listening horns amplify sound waves by funneling wide vibrations into a narrow focus point!',
+    },
+  },
+  {
+    location: 'Enchanted Crystal Conservatory',
+    locationEmoji: '🌿',
+    victim: 'Pippin Hedgehog',
+    victimEmoji: '🦔',
+    item: 'The Glowing Prismatic Dew-Drop',
+    itemEmoji: '💎',
+    intro: 'The prize rainbow crystal dew-drop disappeared from the top fern petal!',
+    concept: {
+      title: 'Ultraviolet Luminescence',
+      description: 'Certain plant minerals and animal footprints glow brightly under UV light rays.',
+      funFact: 'Butterflies and bees can see ultraviolet patterns on flowers that are invisible to human eyes!',
+    },
+  },
+  {
+    location: 'Sky-Pier Airship Docks',
+    locationEmoji: '⚓',
+    victim: 'Zephyr Gull',
+    victimEmoji: '🕊️',
+    item: 'The Silk Navigator Ribbon',
+    itemEmoji: '🎀',
+    intro: 'The ceremonial guiding streamer fluttered away from the helm right before departure!',
+    concept: {
+      title: 'Forensic Fiber Analysis',
+      description: 'Microscopic thread patterns and dyes tell forensic scientists exactly where a material originated.',
+      funFact: 'Silk fibers spun by silkworms are stronger than steel cables of the same microscopic diameter!',
+    },
+  },
+]
+
+/**
+ * Generate an infinite procedural mystery case with guaranteed single-solution constraint satisfaction
+ */
+export function generateProceduralMysteryCase(
+  seed: string | number,
+  difficulty: DifficultyTier = 'easy',
+  explorerLevel: number = 1
+): DetectiveCase {
+  const prng = createPRNG(`${seed}_md_${difficulty}_${explorerLevel}`)
+  const themeIndex = Math.floor(prng() * PROCEDURAL_THEMES.length)
+  const theme = PROCEDURAL_THEMES[themeIndex]
+
+  const suspectList = Object.values(MASTER_SUSPECTS)
+  const poolSize = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 4 : 5
+  const numClues = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 3 : 4
+
+  // Shuffle suspect list deterministically
+  const shuffledSuspects = [...suspectList].sort(() => prng() - 0.5)
+  const pool = shuffledSuspects.slice(0, poolSize)
+
+  // Pick a culprit
+  const culpritIndex = Math.floor(prng() * pool.length)
+  const culprit = pool[culpritIndex]
+
+  // Possible traits to query
+  const traitKeys: (keyof typeof culprit.traits)[] = [
+    'furOrFeathers',
+    'footprint',
+    'accessory',
+    'diet',
+    'habitat',
+    'height',
+  ]
+
+  // Shuffle trait keys
+  const shuffledTraits = [...traitKeys].sort(() => prng() - 0.5)
+
+  // Tool mapping helper
+  const getToolForTrait = (trait: keyof typeof culprit.traits): InvestigationToolType => {
+    switch (trait) {
+      case 'footprint':
+        return 'uv_brush'
+      case 'furOrFeathers':
+        return 'magnifying_glass'
+      case 'accessory':
+        return 'decoder_lens'
+      case 'diet':
+        return 'sound_horn'
+      case 'habitat':
+        return 'sound_horn'
+      case 'height':
+        return 'decoder_lens'
+      default:
+        return 'magnifying_glass'
+    }
+  }
+
+  const getTraitDescription = (trait: keyof typeof culprit.traits, val: string): string => {
+    switch (trait) {
+      case 'footprint':
+        return `Forensic UV scan revealed glowing ${val} prints at the scene!`
+      case 'furOrFeathers':
+        return `Magnifying inspection discovered delicate ${val} fur/feather dust.`
+      case 'accessory':
+        return `Runic decoder translated fiber traces matching a ${val}.`
+      case 'diet':
+        return `Acoustic horn detected crumbs & lingering scent of ${val.replace('_', ' ')}.`
+      case 'habitat':
+        return `Resonance echoes suggest the culprit frequently visits the ${val.replace('_', ' ')}.`
+      case 'height':
+        return `Height measurement scale shows the culprit is definitely ${val}.`
+      default:
+        return `Evidence confirms culprit trait: ${val}`
+    }
+  }
+
+  const hotspotPositions = [
+    { x: 180, y: 190 },
+    { x: 420, y: 150 },
+    { x: 620, y: 220 },
+    { x: 300, y: 320 },
+    { x: 520, y: 340 },
+  ]
+
+  // Build candidate clues
+  const clues: Clue[] = []
+  const hotspots: Hotspot[] = []
+
+  for (let i = 0; i < numClues; i++) {
+    const tKey = shuffledTraits[i % shuffledTraits.length]
+    const val = culprit.traits[tKey]
+    const tool = getToolForTrait(tKey)
+    const pos = hotspotPositions[i % hotspotPositions.length]
+
+    const clueId = `proc_clue_${i + 1}`
+    clues.push({
+      id: clueId,
+      type: 'direct_match',
+      traitKey: tKey,
+      expectedValue: val,
+      textDescription: getTraitDescription(tKey, val),
+      discoveryTool: tool,
+      hotspotLocation: pos,
+      icon: tool === 'uv_brush' ? '✨' : tool === 'sound_horn' ? '👂' : tool === 'decoder_lens' ? '🔮' : '🔍',
+    })
+
+    hotspots.push({
+      id: `proc_hotspot_${i + 1}`,
+      clueId,
+      x: pos.x,
+      y: pos.y,
+      radius: 36,
+      label: `Hotspot #${i + 1}`,
+      hintText: `Examine this spot with your ${INVESTIGATION_TOOLS[tool].name}`,
+      requiredTool: tool,
+    })
+  }
+
+  const generatedCase: DetectiveCase = {
+    id: `procedural_case_${String(seed).slice(0, 12)}_${difficulty}`,
+    title: `${theme.item} Mystery`,
+    locationName: theme.location,
+    locationEmoji: theme.locationEmoji,
+    victimName: theme.victim,
+    victimEmoji: theme.victimEmoji,
+    missingItem: theme.item,
+    missingItemEmoji: theme.itemEmoji,
+    narrativeIntro: theme.intro,
+    difficulty,
+    suspectPool: pool,
+    culpritId: culprit.id,
+    clues,
+    hotspots,
+    parTimeSeconds: difficulty === 'easy' ? 90 : difficulty === 'medium' ? 120 : 160,
+    scientificConcept: theme.concept,
+  }
+
+  // Validate uniqueness invariant. If pool has ambiguous twins, swap clues or fallback
+  const solution = solveCase(generatedCase)
+  if (solution.isUnique && solution.validCulpritIds[0] === culprit.id) {
+    return generatedCase
+  }
+
+  // If ambiguity detected, pick curated case as rock-solid fallback
+  const curatedFallback = CURATED_DETECTIVE_CASES.find((c) => c.difficulty === difficulty) || CURATED_DETECTIVE_CASES[0]
+  return curatedFallback
+}
+
+/**
  * Deterministic Level Generator
  */
 export function generateCase(
   seed: string | number,
-  difficulty: DifficultyTier = 'easy'
+  difficulty: DifficultyTier = 'easy',
+  explorerLevel: number = 1
 ): DetectiveCase {
   const filtered = CURATED_DETECTIVE_CASES.filter((c) => c.difficulty === difficulty)
-  if (filtered.length === 0) {
-    return CURATED_DETECTIVE_CASES[0]
+  if (typeof seed === 'number' && seed < filtered.length) {
+    const chosen = filtered[seed]
+    if (validateCaseUniqueness(chosen)) {
+      return chosen
+    }
   }
 
-  const prng = createPRNG(seed)
-  const index = Math.floor(prng() * filtered.length)
-  const chosen = filtered[index]
-
-  // Validate uniqueness invariant
-  if (!validateCaseUniqueness(chosen)) {
-    throw new Error(`Case ${chosen.id} failed uniqueness invariant check`)
+  if (typeof seed === 'string' && seed.startsWith('curated_')) {
+    const found = CURATED_DETECTIVE_CASES.find((c) => c.id === seed)
+    if (found && validateCaseUniqueness(found)) return found
   }
 
-  return chosen
+  return generateProceduralMysteryCase(seed, difficulty, explorerLevel)
 }
 
 /**

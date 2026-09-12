@@ -284,4 +284,21 @@ assert(regEntry.isPlayable === true, 'magic_machine is marked as isPlayable: tru
 assert(regEntry.status === 'playable', 'magic_machine has status: "playable"')
 assert(regEntry.route === '/playroom/magic-machine', 'magic_machine has correct route')
 
-console.log('\n🎉 ALL 24 MAGIC MACHINE LAB ENGINE ASSERTIONS PASSED!')
+// 8. Procedural Physics Puzzle Generator & Trajectory Prediction
+console.log('\n8. Testing Procedural Physics Generator & Trajectory Prediction...')
+const { generateProceduralPhysicsPuzzle, predictTrajectory } = await import('../src/services/games/magicMachineEngine')
+
+const procPuzzle = generateProceduralPhysicsPuzzle('child_leo_2026_08_28', 'medium', 3)
+assert(!!procPuzzle.id && procPuzzle.id.startsWith('procedural_physics_'), 'Procedural puzzle generated with unique ID')
+assert(procPuzzle.difficulty === 'medium', 'Procedural puzzle difficulty is medium')
+assert(procPuzzle.fixedComponents.length >= 2, 'Procedural puzzle contains fixed obstacle layout')
+assert(procPuzzle.availableToolbox.length > 0, 'Procedural puzzle contains component inventory')
+assert(!!procPuzzle.scientificConcept.title, 'Procedural puzzle has scientific dossier')
+
+// Trajectory prediction
+const procState = getInitialState(procPuzzle)
+const trajectory = predictTrajectory(procState, 30, 0.035)
+assert(trajectory.length > 5, 'Trajectory prediction generated curve points')
+assert(trajectory[0].x === procPuzzle.startPos.x && trajectory[0].y === procPuzzle.startPos.y, 'Trajectory starts at start position')
+
+console.log('\n🎉 ALL 32 MAGIC MACHINE LAB ENGINE ASSERTIONS PASSED!')

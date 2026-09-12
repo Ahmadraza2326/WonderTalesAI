@@ -1083,25 +1083,360 @@ export const CURATED_POTION_PUZZLES: PotionScalesPuzzle[] = [
 // 4. SEEDED PROCEDURAL PUZZLE GENERATOR
 // ==========================================
 
-function createSeededRng(seed: number) {
-  let s = seed % 2147483647
-  if (s <= 0) s += 2147483646
-  return function () {
-    s = (s * 16807) % 2147483647
-    return (s - 1) / 2147483646
+function createPRNG(seed: string | number) {
+  let s = typeof seed === 'number' ? seed : 0
+  if (typeof seed === 'string') {
+    for (let i = 0; i < seed.length; i++) {
+      s = (s << 5) - s + seed.charCodeAt(i)
+      s |= 0
+    }
+  }
+  let a = s >>> 0
+
+  return function next() {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
 
-export function generatePotionPuzzle(seed: number, difficulty: DifficultyTier): PotionScalesPuzzle {
-  const filtered = CURATED_POTION_PUZZLES.filter((p) => p.difficulty === difficulty)
-  const rng = createSeededRng(seed)
-  const baseIndex = Math.floor(rng() * filtered.length)
-  const basePuzzle = filtered[baseIndex] || filtered[0]
+const PROCEDURAL_CUSTOMERS = [
+  {
+    id: 'luna_moth',
+    name: 'Luna Astral Moth',
+    species: 'Silkmoth',
+    avatar: '🦋',
+    orderQuote: 'I need a light celestial nectar to float softly between midnight moonflowers!',
+    celebrationQuote: 'Such a weightless, sparkling brew! My wings feel lighter than a feather!',
+  },
+  {
+    id: 'barnaby_bear',
+    name: 'Barnaby Bear',
+    species: 'Sun Bear',
+    avatar: '🐻',
+    orderQuote: 'A rich golden honey tonic to glaze my berry pastries to perfection!',
+    celebrationQuote: 'Mmm! Sweet, aromatic, and perfectly weighed! You are a master alchemist!',
+  },
+  {
+    id: 'zephyr_gull',
+    name: 'Zephyr Gull',
+    species: 'Sky Gull',
+    avatar: '🕊️',
+    orderQuote: 'An aerodynamic cloud elixir for soaring over the grand ocean cliffs!',
+    celebrationQuote: 'Spectacular equilibrium! The air currents will carry me effortlessly now!',
+  },
+  {
+    id: 'pippin_hedgehog',
+    name: 'Pippin Hedgehog',
+    species: 'Silver Hedgehog',
+    avatar: '🦔',
+    orderQuote: 'A refreshing dew essence for watering the rare crystal ferns!',
+    celebrationQuote: 'My little garden will blossom with rainbow petals thanks to your recipe!',
+  },
+  {
+    id: 'octo_scribe',
+    name: 'Octo Scribe',
+    species: 'Luminous Octopus',
+    avatar: '🐙',
+    orderQuote: 'A dense bioluminescent ink potion for recording ancient undersea tales!',
+    celebrationQuote: 'Incredible density and balance! The deep archive scrolls will glow forever!',
+  },
+  {
+    id: 'chrono_tortoise',
+    name: 'Chrono Tortoise',
+    species: 'Brass Tortoise',
+    avatar: '🐢',
+    orderQuote: 'A finely calibrated oil elixir to lubricate my clockwork pendulum gears!',
+    celebrationQuote: 'Tick-tock, perfect timing! The great tower clock beats in exact harmony!',
+  },
+]
 
-  return {
-    ...basePuzzle,
-    id: `${basePuzzle.id}_seed_${seed}`,
+const PROCEDURAL_POTION_TEMPLATES = [
+  {
+    name: 'Starlight Luminary Tonic',
+    emoji: '🧪',
+    color: '#38bdf8',
+    glow: 'rgba(56, 189, 248, 0.6)',
+    concept: {
+      conceptTitle: 'Liquid Density & Buoyancy',
+      scienceTopic: 'Fluid Mechanics & Specific Gravity',
+      funFact: 'Liquids with different densities can float in distinct colorful layers without mixing!',
+      kidExplanation: 'Dense liquids have molecules packed tightly together, while light liquids float on top.',
+    },
+  },
+  {
+    name: 'Sunfire Elixir of Vitality',
+    emoji: '☀️',
+    color: '#f59e0b',
+    glow: 'rgba(245, 158, 11, 0.6)',
+    concept: {
+      conceptTitle: 'Conservation of Mass in Mixtures',
+      scienceTopic: 'Mass Balance & Alchemy',
+      funFact: 'In 1789, Antoine Lavoisier proved that the total mass before mixing equals the total mass after!',
+      kidExplanation: 'When you combine weights and liquids, not a single speck of matter disappears.',
+    },
+  },
+  {
+    name: 'Prismatic Aurora Draught',
+    emoji: '🌈',
+    color: '#a855f7',
+    glow: 'rgba(168, 85, 247, 0.6)',
+    concept: {
+      conceptTitle: 'Rational Fractions & Portions',
+      scienceTopic: 'Fractional Arithmetic & Parts of a Whole',
+      funFact: 'Ancient Egyptian scribes used unit fractions like 1/2, 1/4, and 1/8 to measure golden barley grain!',
+      kidExplanation: 'Four quarter-grams combine to make one whole gram, just like puzzle pieces.',
+    },
+  },
+  {
+    name: 'Verdant Forest Dew Nectar',
+    emoji: '🍃',
+    color: '#10b981',
+    glow: 'rgba(16, 185, 129, 0.6)',
+    concept: {
+      conceptTitle: 'Fulcrum Equilibrium & Levers',
+      scienceTopic: 'Torque, Levers & Archimedes Principle',
+      funFact: 'Archimedes once declared: "Give me a lever long enough and a fulcrum on which to place it, and I shall move the world!"',
+      kidExplanation: 'A balance scale is a simple machine called a lever. Equal masses at equal distances balance out.',
+    },
+  },
+]
+
+/**
+ * Generate infinite procedural potion orders with algebraic equations and scientific dossiers
+ */
+export function generateProceduralPotionOrder(
+  seed: string | number,
+  difficulty: DifficultyTier = 'easy',
+  explorerLevel: number = 1
+): PotionScalesPuzzle {
+  const prng = createPRNG(`${seed}_ps_${difficulty}_${explorerLevel}`)
+  const custIndex = Math.floor(prng() * PROCEDURAL_CUSTOMERS.length)
+  const customer = PROCEDURAL_CUSTOMERS[custIndex]
+
+  const templIndex = Math.floor(prng() * PROCEDURAL_POTION_TEMPLATES.length)
+  const template = PROCEDURAL_POTION_TEMPLATES[templIndex]
+
+  if (difficulty === 'easy') {
+    // Easy: Whole number balance (e.g. 5g = 2g + ?g)
+    const targetWeights = [4, 5, 6, 7, 8, 9, 10]
+    const targetW = targetWeights[Math.floor(prng() * targetWeights.length)]
+    const fixedRightW = Math.max(1, Math.floor(prng() * (targetW - 1)))
+    const missingW = targetW - fixedRightW
+
+    const leftStarting: WeightItem[] = [
+      {
+        id: `target_order_${targetW}`,
+        name: `Order Flask (${targetW}g)`,
+        emoji: template.emoji,
+        weight: targetW,
+        displayWeightLabel: `${targetW}g`,
+        type: 'liquid_beaker',
+        color: template.color,
+        glowColor: template.glow,
+      },
+    ]
+
+    const rightStarting: WeightItem[] = fixedRightW > 0 ? [
+      {
+        id: `right_base_${fixedRightW}`,
+        name: `Base Ingot (${fixedRightW}g)`,
+        emoji: '🌟',
+        weight: fixedRightW,
+        displayWeightLabel: `${fixedRightW}g`,
+        type: 'ingot',
+        color: '#f59e0b',
+        glowColor: 'rgba(245, 158, 11, 0.6)',
+      },
+    ] : []
+
+    const inventory: WeightItem[] = [
+      MASTER_POTION_WEIGHTS.moonstone_1,
+      MASTER_POTION_WEIGHTS.star_gem_2,
+      MASTER_POTION_WEIGHTS.emerald_leaf_3,
+      MASTER_POTION_WEIGHTS.amber_ingot_5,
+    ]
+
+    return {
+      id: `proc_potion_${String(seed).slice(0, 10)}_${difficulty}`,
+      title: `${customer.name}'s ${template.name}`,
+      difficulty: 'easy',
+      tierNumber: 1,
+      parMoves: 2,
+      recipe: {
+        potionId: `proc_pot_${seed}`,
+        potionName: template.name,
+        potionEmoji: template.emoji,
+        potionColor: template.color,
+        potionGlow: template.glow,
+        targetWeight: targetW,
+        displayTargetFormula: `${targetW}g = ${fixedRightW > 0 ? `${fixedRightW}g + ` : ''}?g`,
+        customer,
+        leftStartingItems: leftStarting,
+        rightStartingItems: rightStarting,
+        availableInventory: inventory,
+        solutionHint: `Add weights equaling ${missingW}g to the right pan to balance the scale.`,
+      },
+      scientificConcept: template.concept,
+    }
+  } else if (difficulty === 'medium') {
+    // Medium: Multi-step equation (e.g. 12g = 4g + ?g)
+    const targetW = 8 + Math.floor(prng() * 10)
+    const fixedRightW = 3 + Math.floor(prng() * 4)
+    const missingW = targetW - fixedRightW
+
+    const leftStarting: WeightItem[] = [
+      {
+        id: `target_order_${targetW}`,
+        name: `${template.name} (${targetW}g)`,
+        emoji: template.emoji,
+        weight: targetW,
+        displayWeightLabel: `${targetW}g`,
+        type: 'liquid_beaker',
+        color: template.color,
+        glowColor: template.glow,
+      },
+    ]
+
+    const rightStarting: WeightItem[] = [
+      {
+        id: `right_base_${fixedRightW}`,
+        name: `Catalyst Shard (${fixedRightW}g)`,
+        emoji: '🔮',
+        weight: fixedRightW,
+        displayWeightLabel: `${fixedRightW}g`,
+        type: 'crystal',
+        color: '#c084fc',
+        glowColor: 'rgba(192, 132, 252, 0.6)',
+      },
+    ]
+
+    const inventory: WeightItem[] = [
+      MASTER_POTION_WEIGHTS.moonstone_1,
+      MASTER_POTION_WEIGHTS.star_gem_2,
+      MASTER_POTION_WEIGHTS.emerald_leaf_3,
+      MASTER_POTION_WEIGHTS.sapphire_drop_4,
+      MASTER_POTION_WEIGHTS.amber_ingot_5,
+      MASTER_POTION_WEIGHTS.ruby_core_6,
+    ]
+
+    return {
+      id: `proc_potion_${String(seed).slice(0, 10)}_${difficulty}`,
+      title: `${customer.name}'s ${template.name}`,
+      difficulty: 'medium',
+      tierNumber: 2,
+      parMoves: 3,
+      recipe: {
+        potionId: `proc_pot_${seed}`,
+        potionName: template.name,
+        potionEmoji: template.emoji,
+        potionColor: template.color,
+        potionGlow: template.glow,
+        targetWeight: targetW,
+        displayTargetFormula: `${targetW}g = ${fixedRightW}g + ?g`,
+        customer,
+        leftStartingItems: leftStarting,
+        rightStartingItems: rightStarting,
+        availableInventory: inventory,
+        solutionHint: `Find weights that sum up to ${missingW}g (${targetW} - ${fixedRightW} = ${missingW}).`,
+      },
+      scientificConcept: template.concept,
+    }
+  } else {
+    // Hard: Fractional balance (e.g. 4.5g = 1.25g + ?g)
+    const fractions = [0.25, 0.5, 0.75]
+    const baseW = 3 + Math.floor(prng() * 4)
+    const fracLeft = fractions[Math.floor(prng() * fractions.length)]
+    const targetW = baseW + fracLeft
+
+    const fixedRightBase = 1 + Math.floor(prng() * 2)
+    const fracRight = fractions[Math.floor(prng() * fractions.length)]
+    const fixedRightW = fixedRightBase + fracRight
+    const missingW = Math.round((targetW - fixedRightW) * 100) / 100
+
+    const leftStarting: WeightItem[] = [
+      {
+        id: `target_frac_${targetW}`,
+        name: `Prismatic Crucible (${targetW}g)`,
+        emoji: '🏆',
+        weight: targetW,
+        displayWeightLabel: `${targetW}g`,
+        type: 'liquid_beaker',
+        color: template.color,
+        glowColor: template.glow,
+      },
+    ]
+
+    const rightStarting: WeightItem[] = [
+      {
+        id: `right_frac_${fixedRightW}`,
+        name: `Essence Vial (${fixedRightW}g)`,
+        emoji: '🧪',
+        weight: fixedRightW,
+        displayWeightLabel: `${fixedRightW}g`,
+        type: 'gem',
+        color: '#f43f5e',
+        glowColor: 'rgba(244, 63, 94, 0.6)',
+      },
+    ]
+
+    const inventory: WeightItem[] = [
+      MASTER_POTION_WEIGHTS.quarter_gem_quarter,
+      MASTER_POTION_WEIGHTS.half_crystal_half,
+      MASTER_POTION_WEIGHTS.three_quarters_shard,
+      MASTER_POTION_WEIGHTS.moonstone_1,
+      MASTER_POTION_WEIGHTS.star_gem_2,
+      MASTER_POTION_WEIGHTS.emerald_leaf_3,
+    ]
+
+    return {
+      id: `proc_potion_${String(seed).slice(0, 10)}_${difficulty}`,
+      title: `${customer.name}'s ${template.name}`,
+      difficulty: 'hard',
+      tierNumber: 3,
+      parMoves: 3,
+      recipe: {
+        potionId: `proc_pot_${seed}`,
+        potionName: template.name,
+        potionEmoji: template.emoji,
+        potionColor: template.color,
+        potionGlow: template.glow,
+        targetWeight: targetW,
+        displayTargetFormula: `${targetW}g = ${fixedRightW}g + ?g`,
+        customer,
+        leftStartingItems: leftStarting,
+        rightStartingItems: rightStarting,
+        availableInventory: inventory,
+        solutionHint: `Subtract fractions: ${targetW}g - ${fixedRightW}g = ${missingW}g.`,
+      },
+      scientificConcept: template.concept,
+    }
   }
+}
+
+export function generatePotionPuzzle(
+  seed: string | number,
+  difficulty: DifficultyTier = 'easy',
+  explorerLevel: number = 1
+): PotionScalesPuzzle {
+  const filtered = CURATED_POTION_PUZZLES.filter((p) => p.difficulty === difficulty)
+
+  if (typeof seed === 'number' && seed < filtered.length) {
+    const basePuzzle = filtered[seed] || filtered[0]
+    return {
+      ...basePuzzle,
+      id: `${basePuzzle.id}_seed_${seed}`,
+    }
+  }
+
+  if (typeof seed === 'string' && seed.startsWith('curated_')) {
+    const found = CURATED_POTION_PUZZLES.find((p) => p.id === seed)
+    if (found) return found
+  }
+
+  return generateProceduralPotionOrder(seed, difficulty, explorerLevel)
 }
 
 // ==========================================

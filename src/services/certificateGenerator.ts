@@ -80,28 +80,42 @@ const THEME_PALETTES: Record<
   },
 }
 
+function escapeXml(unsafe: string): string {
+  return String(unsafe ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export const certificateGenerator = {
   /**
    * Generates a complete, self-contained SVG string of the child's achievement diploma.
    */
   generateCertificateSvg(options: CertificateOptions): string {
     const theme = THEME_PALETTES[options.theme] || THEME_PALETTES.cosmic_master
-    const dateStr =
+    const rawDate =
       options.dateString ||
       new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       })
+    const dateStr = escapeXml(rawDate)
 
-    const customNote =
+    const rawCustomNote =
       options.customMessage ||
       'For outstanding courage, creative imagination, and scientific inquiry across the ORBis Universe.'
+    const customNote = escapeXml(rawCustomNote)
 
-    const stationsList =
+    const rawStationsList =
       options.masteredStations && options.masteredStations.length > 0
         ? options.masteredStations.join('  •  ')
         : 'Creature Lab  •  Magic Machine  •  Mystery Detective  •  Potion Scales'
+    const stationsList = escapeXml(rawStationsList)
+    const childName = escapeXml(options.childName || 'Explorer')
+    const explorerTitle = escapeXml(options.explorerTitle || 'Grand Master of the Cosmos')
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="100%" height="100%" style="font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;">
   <defs>
@@ -184,7 +198,7 @@ export const certificateGenerator = {
 
     <!-- Child Name -->
     <text x="600" y="340" font-size="52" font-weight="900" fill="${theme.textColor}" letter-spacing="1">
-      ${options.childName || 'Explorer'}
+      ${childName}
     </text>
     <line x1="320" y1="365" x2="880" y2="365" stroke="url(#goldGrad)" stroke-width="3" />
 
@@ -192,7 +206,7 @@ export const certificateGenerator = {
     <rect x="400" y="390" width="400" height="42" rx="21" fill="${theme.borderColor}" opacity="0.18" />
     <rect x="400" y="390" width="400" height="42" rx="21" fill="none" stroke="${theme.borderColor}" stroke-width="1.5" />
     <text x="600" y="418" font-size="20" font-weight="800" fill="${theme.accentColor}">
-      ⭐ ${options.explorerTitle || 'Grand Master of the Cosmos'} ⭐
+      ⭐ ${explorerTitle} ⭐
     </text>
 
     <!-- Custom Citation Text -->

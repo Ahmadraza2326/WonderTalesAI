@@ -89,6 +89,50 @@ export const economyService = {
     const safeXp = Math.max(0, Math.min(Math.floor(xpAmount), 500))
     const safeStars = Math.max(0, Math.min(Math.floor(starsAmount), 100))
 
+    // Helper to update local profile storage and notify reactive listeners
+    const applyLocalUpdateAndNotify = (awardedXp: number, awardedStars: number) => {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          for (let i = 0; i < window.localStorage.length; i++) {
+            const key = window.localStorage.key(i)
+            if (key && key.startsWith('orbis_child_profiles_')) {
+              const raw = window.localStorage.getItem(key)
+              if (raw) {
+                const profiles = JSON.parse(raw)
+                if (Array.isArray(profiles)) {
+                  let changed = false
+                  const updated = profiles.map((p: any) => {
+                    if (p.id === childId) {
+                      changed = true
+                      return {
+                        ...p,
+                        xp: (p.xp || 0) + awardedXp,
+                        stars: (p.stars || 0) + awardedStars,
+                      }
+                    }
+                    return p
+                  })
+                  if (changed) {
+                    window.localStorage.setItem(key, JSON.stringify(updated))
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // Ignore local storage error
+        }
+
+        try {
+          window.dispatchEvent(
+            new CustomEvent('orbis:child_progress_updated', {
+              detail: { childId, xpAwarded: awardedXp, starsAwarded: awardedStars },
+            })
+          )
+        } catch {}
+      }
+    }
+
     try {
       const { data, error } = await supabase.rpc('award_child_rewards', {
         p_child_id: childId,
@@ -103,25 +147,30 @@ export const economyService = {
       }
 
       const response = (data as RawRpcRewardResponse | null) || {}
+      const finalXp = response.xp_awarded ?? (response.already_awarded ? 0 : safeXp)
+      const finalStars = response.stars_awarded ?? (response.already_awarded ? 0 : safeStars)
+
+      applyLocalUpdateAndNotify(finalXp, finalStars)
 
       return {
         success: response.success ?? true,
         alreadyAwarded: response.already_awarded ?? false,
-        xpAwarded: response.xp_awarded ?? (response.already_awarded ? 0 : safeXp),
-        starsAwarded: response.stars_awarded ?? (response.already_awarded ? 0 : safeStars),
+        xpAwarded: finalXp,
+        starsAwarded: finalStars,
         currentXp: response.current_xp,
         currentStars: response.current_stars,
         currentStreak: response.current_streak,
         streakIncremented: response.streak_incremented ?? false,
       }
     } catch (error) {
-      console.error('[economyService] Error completing activity and awarding rewards:', error)
+      console.warn('[economyService] Remote RPC failed or offline, applying local reward fallback:', error)
+      applyLocalUpdateAndNotify(safeXp, safeStars)
+
       return {
-        success: false,
+        success: true,
         alreadyAwarded: false,
-        xpAwarded: 0,
-        starsAwarded: 0,
-        error: error instanceof Error ? error : new Error(String(error)),
+        xpAwarded: safeXp,
+        starsAwarded: safeStars,
       }
     }
   },

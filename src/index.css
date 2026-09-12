@@ -1,3 +1,5 @@
+@import './styles/tokens.css';
+
 :root {
   /* Typography Families */
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
@@ -148,22 +150,24 @@ body {
   min-width: 320px;
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--page-bg);
+  background-color: #04071b;
+  background-image: radial-gradient(ellipse at 50% 35%, #0e1545 0%, #080c2e 50%, #030514 100%);
   color: var(--text-body);
   font-family: var(--font-body);
-  transition: background 220ms ease, color 220ms ease;
-  padding-top: var(--safe-top);
-  padding-left: var(--safe-left);
-  padding-right: var(--safe-right);
+  transition: color 220ms ease;
   background-attachment: fixed;
+  overflow-x: hidden;
 }
 
 #root {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: 0 max(1rem, var(--safe-left)) max(2rem, var(--safe-bottom)) max(1rem, var(--safe-right));
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
   min-height: 100vh;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 a {

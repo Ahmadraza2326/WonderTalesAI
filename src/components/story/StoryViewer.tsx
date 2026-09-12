@@ -1,4 +1,4 @@
-import { memo, useState, useMemo, useCallback } from 'react'
+import React, { memo, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { StoryRecord } from '../../types/story'
 import type { StoryNarration } from '../../types/narration'
@@ -7,7 +7,9 @@ import { CognitiveSkillBadge } from '../experience/CognitiveSkillBadge'
 import { sfxService } from '../../services/audio/sfxService'
 import { generateMemoryQuestGame } from '../../services/games/storyMemoryQuest'
 import { generateWordTraceGame } from '../../services/games/wordTrace'
-import { getStationRecommendationForStory } from '../../services/worldRecommendationService'
+import { getStoryContinuityBridge } from '../../services/academy/storyContinuityEngine'
+import { useChildProfiles } from '../../hooks/useChildProfiles'
+import { StoryContinuityBridgeCard } from './StoryContinuityBridgeCard'
 
 // Interactive Quest Components
 import { QuizSection } from './QuizSection'
@@ -54,7 +56,13 @@ export const StoryViewer = memo(function StoryViewer({
   const [activeQuest, setActiveQuest] = useState<QuestTabId>('quiz')
   const [isExtraActivitiesOpen, setIsExtraActivitiesOpen] = useState(false)
 
-  const recommendation = useMemo(() => getStationRecommendationForStory(story), [story])
+  const { selectedProfile } = useChildProfiles()
+  const continuityBridge = useMemo(() => {
+    return getStoryContinuityBridge({
+      story,
+      activeChild: selectedProfile || undefined,
+    })
+  }, [story, selectedProfile])
 
   const storyText =
     story.learning_package?.story?.trim() ||
@@ -345,92 +353,16 @@ export const StoryViewer = memo(function StoryViewer({
         {activeQuest === 'mystery_detective' ? <MysteryDetective story={story} /> : null}
       </div>
 
-      {/* 2.5. Playroom World Flagship Recommendation Card */}
-      <section
-        style={{
-          borderRadius: '1.25rem',
-          background: recommendation.bannerGradient,
-          padding: '1.5rem',
-          color: '#ffffff',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-        }}
-        aria-label="Recommended Playroom Station"
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.4rem' }}>🪐</span>
-            <span
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                background: 'rgba(255, 255, 255, 0.15)',
-                padding: '4px 10px',
-                borderRadius: '9999px',
-              }}
-            >
-              Playroom World Quest Match
-            </span>
-          </div>
-
-          <span
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              color: '#fbbf24',
-              background: 'rgba(15, 23, 42, 0.6)',
-              padding: '4px 10px',
-              borderRadius: '9999px',
-            }}
-          >
-            {recommendation.stationEmoji} {recommendation.stationTitle}
-          </span>
-        </div>
-
-        <div>
-          <h3 style={{ margin: '0 0 0.4rem', fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc' }}>
-            {recommendation.headline}
-          </h3>
-          <p style={{ margin: '0 0 0.5rem', fontSize: '0.92rem', color: '#e2e8f0', lineHeight: 1.5 }}>
-            {recommendation.reason}
-          </p>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1', fontStyle: 'italic' }}>
-            ✨ {recommendation.callToAction}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            sfxService.play('star_pop')
-            navigate(recommendation.route)
-          }}
-          style={{
-            alignSelf: 'flex-start',
-            padding: '0.75rem 1.4rem',
-            borderRadius: '0.85rem',
-            border: 'none',
-            background: '#ffffff',
-            color: '#1e1b4b',
-            fontSize: '0.95rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            minHeight: '44px',
-          }}
-        >
-          <span>Launch {recommendation.stationTitle}</span>
-          <span style={{ fontSize: '1.1rem' }}>➔</span>
-        </button>
-      </section>
+      {/* 2. Unified Story Continuity Bridge (Academy + Playroom Triad) */}
+      {continuityBridge ? (
+        <StoryContinuityBridgeCard
+          bridge={continuityBridge}
+          onLaunchLesson={(route) => navigate(route)}
+          onLaunchPractice={(route) => navigate(route)}
+          onLaunchGame={(route) => navigate(route)}
+          onBackToLibrary={() => navigate('/library')}
+        />
+      ) : null}
 
       {/* 3. Expandable Educational Reflections & Parent Guide Section */}
       <section

@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import React, { memo, useCallback } from 'react'
 import { sfxService } from '../../services/audio/sfxService'
 
 export type ActivityDifficulty = 'easy' | 'medium' | 'hard'

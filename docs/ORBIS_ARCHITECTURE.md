@@ -11,7 +11,7 @@ ORBis relies on provider abstractions to ensure the application does not break i
 - **Voice:** `VoiceProvider` interface (`generateNarration(segments, options)`). 
   - *Current implementations:* `PiperVoiceProvider` (Local sidecar for Free/Dev), `OrbisVoiceProvider` (Cloud).
 - **Images:** `ImageProvider` interface.
-  - *Current implementations:* `PollinationsImageProvider` (Free tier), `MockImageProvider` (Testing).
+  - *Current implementations:* `ServerImageProvider` (Cloudflare Workers AI FLUX with Hugging Face & Procedural SVG fallback), `MockImageProvider` (Testing), `PollinationsImageProvider` (Legacy optional).
 - **Text/LLM:** `aiEngine.ts` and `sceneIntelligence.ts` handle story generation, returning structured JSON (Story DNA).
 
 **Architectural Rule:** Never call an external API directly from a React component. Always inject or call the appropriate Provider interface.

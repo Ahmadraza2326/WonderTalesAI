@@ -442,28 +442,176 @@ export const MAGIC_MACHINE_PUZZLES: MachineConfig[] = [
   },
 ]
 
+function hashSeed(seed: string | number): number {
+  if (typeof seed === 'number') return Math.abs(seed)
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function mulberry32(a: number): () => number {
+  return function () {
+    let t = (a += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Generates an endless daily procedural clockwork physics contraption.
+ */
+export function generateProceduralPhysicsPuzzle(
+  seed: string | number,
+  difficulty: DifficultyTier = 'easy',
+  explorerLevel = 1
+): MachineConfig {
+  const seedNum = hashSeed(`${seed}_${difficulty}_${explorerLevel}`)
+  const rng = mulberry32(seedNum)
+
+  const concepts = [
+    {
+      title: 'Parabolic Projectile Kinematics',
+      description: 'Objects launched into the air follow symmetrical parabolic curves under constant downward gravitational acceleration.',
+      funFact: 'Galileo Galilei first proved mathematically that projectiles form parabolas in 1638!',
+    },
+    {
+      title: 'Spring Potential Energy & Restitution',
+      description: 'A compressed spring stores elastic potential energy that rapidly converts into explosive kinetic launch velocity.',
+      funFact: 'Hooke’s Law explains why the rebound height is directly proportional to how much the spring is compressed!',
+    },
+    {
+      title: 'Fluid Drag & Air Currents',
+      description: 'Moving air columns create aerodynamic lift and horizontal thrust against rolling objects.',
+      funFact: 'Hovercrafts ride on a cushion of pressurized air just like our Updraft Turbines!',
+    },
+    {
+      title: 'Electromagnetic Flux & Centripetal Pull',
+      description: 'Magnetic fields exert non-contact forces that curve passing metal-infused objects into orbital trajectories.',
+      funFact: 'Particle colliders use giant magnetic rings to steer particles traveling near the speed of light!',
+    },
+    {
+      title: 'Conservation of Momentum in Elastic Rebounds',
+      description: 'When elastic bumpers collide with rolling actors, kinetic energy is conserved and reflected at equal angles.',
+      funFact: 'Superballs have an elastic coefficient of restitution over 0.85, making them the most bouncy objects made by humans!',
+    },
+  ]
+
+  const concept = concepts[Math.floor(rng() * concepts.length)]
+
+  let startX = 80
+  let startY = 120
+  let goalX = 700
+  let goalY = 400
+  let parComponents = 2
+  let toolbox = [
+    { type: 'ramp_right' as MachineComponentType, count: 2, maxCount: 2 },
+    { type: 'spring_up' as MachineComponentType, count: 1, maxCount: 1 },
+  ]
+  let fixedComponents = [
+    { id: 'start_plat', type: 'platform_wood' as MachineComponentType, x: 30, y: 160, width: 110, height: 20, isFixed: true },
+    { id: 'goal_plat', type: 'platform_wood' as MachineComponentType, x: 650, y: 440, width: 110, height: 20, isFixed: true },
+  ]
+
+  if (difficulty === 'medium') {
+    startY = 380
+    goalY = 180
+    parComponents = 3
+    fixedComponents = [
+      { id: 'start_plat', type: 'platform_wood', x: 30, y: 420, width: 110, height: 20, isFixed: true },
+      { id: 'center_barrier', type: 'platform_wood', x: 380, y: 240, width: 30, height: 220, isFixed: true },
+      { id: 'goal_plat', type: 'platform_wood', x: 650, y: 220, width: 110, height: 20, isFixed: true },
+    ]
+    toolbox = [
+      { type: 'spring_up', count: 2, maxCount: 2 },
+      { type: 'fan_right', count: 1, maxCount: 1 },
+      { type: 'bumper_circle', count: 1, maxCount: 1 },
+    ]
+  } else if (difficulty === 'hard') {
+    startY = 420
+    goalY = 100
+    parComponents = 4
+    fixedComponents = [
+      { id: 'start_plat', type: 'platform_wood', x: 30, y: 460, width: 100, height: 20, isFixed: true },
+      { id: 'floating_isle_1', type: 'platform_wood', x: 260, y: 320, width: 30, height: 160, isFixed: true },
+      { id: 'floating_isle_2', type: 'platform_wood', x: 500, y: 200, width: 30, height: 280, isFixed: true },
+      { id: 'goal_plat', type: 'platform_wood', x: 650, y: 140, width: 110, height: 20, isFixed: true },
+    ]
+    toolbox = [
+      { type: 'spring_up', count: 2, maxCount: 2 },
+      { type: 'magnet_attract', count: 1, maxCount: 1 },
+      { type: 'fan_up', count: 1, maxCount: 1 },
+      { type: 'ramp_steep', count: 1, maxCount: 1 },
+    ]
+  }
+
+  const levelNum = (seedNum % 999) + 1
+  return {
+    id: `procedural_physics_${difficulty}_${levelNum}`,
+    title: `Clockwork Sector #${levelNum}`,
+    subtitle: `Procedural ${difficulty.toUpperCase()} Contraption Challenge`,
+    difficulty,
+    startPos: { x: startX, y: startY },
+    goal: { x: goalX, y: goalY, radius: 24, label: 'Star Cradle' },
+    fixedComponents,
+    availableToolbox: toolbox,
+    parComponents,
+    hint: `Analyze the height gap: use kinetic components from your toolbox to route the Sproutling safely into the Star Cradle in under ${parComponents} moves!`,
+    scientificConcept: concept,
+  }
+}
+
+/**
+ * Predicts the projectile trajectory arc under gravity and components.
+ */
+export function predictTrajectory(state: MachineState, steps = 45, dt = 0.035): Array<{ x: number; y: number }> {
+  let simState: MachineState = {
+    ...state,
+    simulationStatus: 'running',
+    actor: {
+      ...state.actor,
+      x: state.config.startPos.x,
+      y: state.config.startPos.y,
+      vx: 40,
+      vy: 0,
+      isGrounded: false,
+      state: 'running',
+      trail: [],
+    },
+    activeCollisions: [],
+  }
+
+  const points: Array<{ x: number; y: number }> = [{ x: simState.actor.x, y: simState.actor.y }]
+
+  for (let i = 0; i < steps; i++) {
+    simState = stepSimulation(simState, dt)
+    points.push({ x: simState.actor.x, y: simState.actor.y })
+    if (simState.simulationStatus === 'success' || simState.simulationStatus === 'failed') {
+      break
+    }
+  }
+
+  return points
+}
+
 /**
  * Generate Level Config from Seed / Index and Difficulty Tier
  */
-export function generateLevel(seed: string | number, difficulty: DifficultyTier = 'easy'): MachineConfig {
+export function generateLevel(seed: string | number, difficulty: DifficultyTier = 'easy', explorerLevel = 1): MachineConfig {
   const filtered = MAGIC_MACHINE_PUZZLES.filter((p) => p.difficulty === difficulty)
-  if (filtered.length === 0) {
-    return MAGIC_MACHINE_PUZZLES[0]
+  
+  if (typeof seed === 'number' && seed < filtered.length) {
+    return filtered[seed]
   }
 
-  let index = 0
-  if (typeof seed === 'number') {
-    index = Math.abs(seed) % filtered.length
-  } else if (typeof seed === 'string') {
-    let hash = 0
-    for (let i = 0; i < seed.length; i++) {
-      hash = (hash << 5) - hash + seed.charCodeAt(i)
-      hash |= 0
-    }
-    index = Math.abs(hash) % filtered.length
+  if (typeof seed === 'number' && filtered.length > 0 && seed < 10) {
+    return filtered[seed % filtered.length]
   }
 
-  return filtered[index]
+  return generateProceduralPhysicsPuzzle(seed, difficulty, explorerLevel)
 }
 
 /**

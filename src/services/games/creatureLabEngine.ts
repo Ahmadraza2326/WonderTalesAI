@@ -1,6 +1,9 @@
 import type {
   Essence,
   CreatureSpecies,
+  CreatureTrait,
+  CreatureMutation,
+  CreatureMutationVariant,
   HappyAccidentReaction,
   BrewResult,
   CreatureRarity,
@@ -822,18 +825,142 @@ export function getRewardForRarity(rarity: CreatureRarity): { xp: number; stars:
   }
 }
 
+export const MUTATION_CONFIGS: Record<CreatureMutationVariant, {
+  name: string
+  titlePrefix: string
+  auraColor: string
+  sparkleEmoji: string
+  bonusXp: number
+  bonusStars: number
+  mutationDescription: string
+  trait: CreatureTrait
+}> = {
+  normal: {
+    name: 'Canonical Species',
+    titlePrefix: '',
+    auraColor: 'transparent',
+    sparkleEmoji: '✨',
+    bonusXp: 0,
+    bonusStars: 0,
+    mutationDescription: 'Pure elemental manifestation.',
+    trait: { name: 'Elemental Purity', emoji: '✨', description: 'Harmonizes with its natural habitat.' },
+  },
+  golden: {
+    name: 'Golden Solar Mutation',
+    titlePrefix: 'Gilded',
+    auraColor: 'rgba(251, 191, 36, 0.75)',
+    sparkleEmoji: '🌟',
+    bonusXp: 25,
+    bonusStars: 5,
+    mutationDescription: 'Infused with super-concentrated solar dawn radiation.',
+    trait: { name: 'Solar Radiance', emoji: '☀️', description: 'Glows with perpetual warm solar light.' },
+  },
+  spectral: {
+    name: 'Spectral Moonlit Mutation',
+    titlePrefix: 'Spectral',
+    auraColor: 'rgba(6, 182, 212, 0.75)',
+    sparkleEmoji: '👻',
+    bonusXp: 35,
+    bonusStars: 6,
+    mutationDescription: 'Phase-shifts between physical matter and starlight ether.',
+    trait: { name: 'Ethereal Phase', emoji: '🌌', description: 'Floats silently through physical barriers.' },
+  },
+  iridescent: {
+    name: 'Iridescent Prismatic Mutation',
+    titlePrefix: 'Prismatic',
+    auraColor: 'rgba(236, 72, 153, 0.75)',
+    sparkleEmoji: '🌈',
+    bonusXp: 50,
+    bonusStars: 8,
+    mutationDescription: 'Refracts pure starlight into kaleidoscopic rainbow halos.',
+    trait: { name: 'Prismatic Prism', emoji: '💎', description: 'Bends ambient light into vibrant rainbow ribbons.' },
+  },
+  starlight_celestial: {
+    name: 'Celestial Nova Mutation',
+    titlePrefix: 'Astral',
+    auraColor: 'rgba(168, 85, 247, 0.9)',
+    sparkleEmoji: '🌠',
+    bonusXp: 75,
+    bonusStars: 10,
+    mutationDescription: 'Born under a rare cosmic supernova alignment.',
+    trait: { name: 'Supernova Heart', emoji: '✨', description: 'Emits cosmic gravitational pulses of stardust.' },
+  },
+}
+
+/**
+ * Procedurally generates an endless variation of a creature using Mulberry32 PRNG.
+ */
+export function generateCreatureMutation(
+  creature: CreatureSpecies,
+  seedOrDate?: string | number,
+  explorerLevel = 1
+): CreatureSpecies {
+  const seed =
+    typeof seedOrDate === 'number'
+      ? seedOrDate
+      : hashString(`${creature.id}_${seedOrDate || new Date().toISOString().slice(0, 10)}_${explorerLevel}`)
+
+  const rng = mulberry32(seed)
+  const roll = rng()
+
+  // Base mutation chance: 20% + 2% per explorer level (max 45%)
+  const mutationChance = Math.min(0.45, 0.20 + explorerLevel * 0.02)
+
+  if (roll > mutationChance) {
+    return { ...creature }
+  }
+
+  const subRoll = rng()
+  let variant: CreatureMutationVariant = 'golden'
+  if (subRoll < 0.15) {
+    variant = 'starlight_celestial'
+  } else if (subRoll < 0.40) {
+    variant = 'iridescent'
+  } else if (subRoll < 0.70) {
+    variant = 'spectral'
+  } else {
+    variant = 'golden'
+  }
+
+  const config = MUTATION_CONFIGS[variant]
+  const mutation: CreatureMutation = {
+    variant,
+    name: config.name,
+    titlePrefix: config.titlePrefix,
+    auraColor: config.auraColor,
+    sparkleEmoji: config.sparkleEmoji,
+    bonusXp: config.bonusXp,
+    bonusStars: config.bonusStars,
+    mutationDescription: config.mutationDescription,
+    specialTrait: config.trait,
+  }
+
+  return {
+    ...creature,
+    name: `${config.titlePrefix} ${creature.name}`.trim(),
+    glowColor: config.auraColor,
+    mutation,
+    traits: [...creature.traits, config.trait],
+  }
+}
+
 /**
  * Evaluates a brewing recipe deterministically.
  *
  * @param essenceIds Array of 2 or 3 selected essence IDs
  * @param discoveredIds List of creature IDs already in child's collection
- * @param seed Optional seed for deterministic happy accident selection
+ * @param seed Optional seed or options for deterministic happy accident and mutation generation
  */
 export function evaluateBrew(
   essenceIds: string[],
   discoveredIds: string[] = [],
-  seed: number = 42
+  seed: number | { seed?: number; childId?: string; explorerLevel?: number; dateKey?: string } = 42
 ): BrewResult {
+  const resolvedSeed = typeof seed === 'number' ? seed : seed.seed || 42
+  const childId = typeof seed === 'object' ? seed.childId || 'guest' : 'guest'
+  const explorerLevel = typeof seed === 'object' ? seed.explorerLevel || 1 : 1
+  const dateKey = typeof seed === 'object' ? seed.dateKey || new Date().toISOString().slice(0, 10) : ''
+
   if (!Array.isArray(essenceIds) || essenceIds.length < 2) {
     // Graceful fallback for incomplete brew
     return {
@@ -860,19 +987,28 @@ export function evaluateBrew(
     const isNewDiscovery = !discoveredIds.includes(matchedCreature.id)
     const baseReward = getRewardForRarity(matchedCreature.rarity)
 
+    // Check for rare procedural mutation
+    const mutatedCreature = dateKey || typeof seed === 'object'
+      ? generateCreatureMutation(matchedCreature, `${childId}_${dateKey}_${resolvedSeed}`, explorerLevel)
+      : matchedCreature
+
+    const bonusXp = mutatedCreature.mutation?.bonusXp || 0
+    const bonusStars = mutatedCreature.mutation?.bonusStars || 0
+
     return {
       type: 'creature',
-      creature: matchedCreature,
+      creature: mutatedCreature,
       isNewDiscovery,
       // First discovery gets full XP/Stars; repeat discovery gets crafting stardust only
-      xpAwarded: isNewDiscovery ? baseReward.xp : 0,
-      starsAwarded: isNewDiscovery ? baseReward.stars : 0,
+      xpAwarded: isNewDiscovery ? baseReward.xp + bonusXp : 0,
+      starsAwarded: isNewDiscovery ? baseReward.stars + bonusStars : 0,
       stardustAwarded: isNewDiscovery ? 10 : 3,
+      mutation: mutatedCreature.mutation,
     }
   }
 
   // No specific creature matched: generate a deterministic "Happy Accident"
-  const comboHash = hashString(normalizedInput.join('_') + `_${seed}`)
+  const comboHash = hashString(normalizedInput.join('_') + `_${resolvedSeed}`)
   const rng = mulberry32(comboHash)
   const accidentIndex = Math.floor(rng() * HAPPY_ACCIDENTS.length)
   const reaction = HAPPY_ACCIDENTS[accidentIndex] || HAPPY_ACCIDENTS[0]

@@ -4,64 +4,43 @@ import {
   getPlaygroundGame,
   getPlayablePlaygroundGames,
   getPlaygroundGamesByDomain,
+  CANONICAL_FLAGSHIP_IDS,
   PLAYGROUND_REGISTRY
 } from '../src/services/games/playgroundRegistry'
-import type { PlaygroundGameId } from '../src/types/playground'
 
 console.log('🧪 RUNNING ORBIS PLAYGROUND REGISTRY VERIFICATION SUITE...\n')
 
-// 1. Verify registered games (10 original concepts + Creature Lab + Magic Machine)
+// 1. Verify 10 Canonical Flagship Games
 const allGames = getAllPlaygroundGames()
-assert.ok(allGames.length >= 11, `Expected at least 11 registered games, found ${allGames.length}`)
-console.log(`✅ [1/6] Registered games count matches master concepts`)
+assert.strictEqual(allGames.length, 10, `Expected exactly 10 canonical flagship games, found ${allGames.length}`)
+console.log(`✅ [1/6] Exactly 10 canonical flagship games confirmed`)
 
 // 2. Verify ranking order integrity
-assert.strictEqual(allGames[0].id, 'spellforge', 'Rank 1 must be Spellforge')
+assert.strictEqual(allGames[0].id, 'potion_scales', 'Rank 1 must be Potion Market Scales')
 console.log(`✅ [2/6] Top ranking confirmed`)
 
 // 3. Verify playable game status
 const playableGames = getPlayablePlaygroundGames()
-assert.ok(playableGames.length >= 2, 'Expected at least 2 playable games (Creature Lab + Magic Machine Lab)')
-assert.ok(playableGames.some((g) => g.id === 'creature_lab'), 'Playable games must include creature_lab')
-assert.ok(playableGames.some((g) => g.id === 'magic_machine' || g.id === 'invention_lab'), 'Playable games must include magic_machine/invention_lab')
-console.log(`✅ [3/6] Playable game filter correctly identifies playable games`)
+assert.strictEqual(playableGames.length, 10, 'Expected all 10 canonical games to be 100% playable')
+console.log(`✅ [3/6] All 10 canonical flagship games are marked playable`)
 
 // 4. Verify domain filtering
 const vocabGames = getPlaygroundGamesByDomain('vocabulary')
-assert.ok(vocabGames.some((g) => g.id === 'spellforge'), 'Spellforge must be in vocabulary domain')
+assert.ok(vocabGames.some((g) => g.id === 'spellforge' || g.id === 'word_trace'), 'Spellforge/Word Trace in vocabulary domain')
 const logicGames = getPlaygroundGamesByDomain('logic')
-assert.ok(logicGames.some((g) => g.id === 'magic_machine' || g.id === 'invention_lab'), 'Magic Machine/Invention Lab must be in logic domain')
-const memoryGames = getPlaygroundGamesByDomain('memory')
-assert.ok(memoryGames.some((g) => g.id === 'memory_museum'), 'Memory Museum must be in memory domain')
+assert.ok(logicGames.some((g) => g.id === 'potion_scales' || g.id === 'magic_machine' || g.id === 'invention_lab'), 'Potion Scales/Magic Machine/Invention Lab in logic domain')
 console.log(`✅ [4/6] Cognitive domain queries return correct game mappings`)
 
 // 5. Verify individual lookups
-const spellforge = getPlaygroundGame('spellforge')
-assert.ok(spellforge, 'getPlaygroundGame(spellforge) must exist')
-assert.strictEqual(spellforge?.category, 'linguistic_craft')
-assert.ok(spellforge?.learningObjectives.length >= 3)
-assert.ok(spellforge?.keyMechanics.length >= 3)
+const potion = getPlaygroundGame('potion_scales')
+assert.ok(potion, 'getPlaygroundGame(potion_scales) must exist')
+assert.strictEqual(potion?.category, 'alchemy_discovery')
+assert.ok(potion && potion.learningObjectives.length >= 3)
+assert.ok(potion && potion.keyMechanics.length >= 3)
 console.log(`✅ [5/6] Individual game contract inspection validated`)
 
-// 6. Verify all games have complete metadata
-const expectedIds: PlaygroundGameId[] = [
-  'magic_machine',
-  'mystery_detective',
-  'potion_scales',
-  'spellforge',
-  'memory_museum',
-  'word_detective',
-  'skyship_builder',
-  'creature_care',
-  'rhythm_spells',
-  'world_builder',
-  'time_machine',
-  'invention_lab',
-  'orbis_quest_run',
-  'creature_lab'
-]
-
-for (const id of expectedIds) {
+// 6. Verify all 10 canonical games have complete metadata
+for (const id of CANONICAL_FLAGSHIP_IDS) {
   const game = PLAYGROUND_REGISTRY[id]
   assert.ok(game, `Game ${id} must exist in registry`)
   assert.ok(game.title.length > 0, `Game ${id} must have title`)
@@ -70,6 +49,6 @@ for (const id of expectedIds) {
   assert.ok(game.accentGlow.startsWith('rgba'), `Game ${id} glow must be rgba`)
   assert.ok(game.ageRange.min >= 3 && game.ageRange.max <= 12, `Game ${id} age range valid`)
 }
-console.log(`✅ [6/6] All 11 game contracts contain complete, valid metadata`)
+console.log(`✅ [6/6] All 10 canonical flagship game contracts contain complete, valid metadata`)
 
 console.log('\n🎉 ALL 6 PLAYGROUND REGISTRY ASSERTIONS PASSED!')

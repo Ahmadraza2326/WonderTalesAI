@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { childProfileService } from '../services/childProfileService'
+import { childProfileService, getLocalChildProfiles } from '../services/childProfileService'
 import type {
   ChildProfile,
   CreateChildProfileInput,
@@ -22,10 +22,20 @@ export interface UseChildProfilesResult {
 
 export function useChildProfiles(): UseChildProfilesResult {
   const { user } = useAuth()
-  const [profiles, setProfiles] = useState<ChildProfile[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const parentId = user?.id || 'guest'
+
+  const [profiles, setProfiles] = useState<ChildProfile[]>(() =>
+    getLocalChildProfiles(parentId)
+  )
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    const cached = getLocalChildProfiles(parentId)
+    return cached.length === 0
+  })
   const [error, setError] = useState<string | null>(null)
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() => {
+    const cached = getLocalChildProfiles(parentId)
+    return cached.length > 0 ? cached[0].id : null
+  })
   const isMountedRef = useRef<boolean>(true)
 
   useEffect(() => {
@@ -36,26 +46,22 @@ export function useChildProfiles(): UseChildProfilesResult {
   }, [])
 
   const fetchProfiles = useCallback(async () => {
-    if (!user?.id) {
-      if (isMountedRef.current) {
-        setProfiles([])
-        setIsLoading(false)
-      }
-      return
-    }
+    const currentParentId = user?.id || 'guest'
 
-    if (isMountedRef.current) {
-      setIsLoading(true)
-      setError(null)
-    }
-
-    const { data, error: fetchErr } = await childProfileService.getChildProfiles(user.id)
+    const { data, error: fetchErr } = await childProfileService.getChildProfiles(currentParentId)
 
     if (isMountedRef.current) {
       if (fetchErr) {
         setError(fetchErr.message)
       } else {
-        setProfiles(data || [])
+        const list = data || []
+        setProfiles(list)
+        setSelectedProfileId((prevId) => {
+          if (prevId && list.some((p) => p.id === prevId)) {
+            return prevId
+          }
+          return list.length > 0 ? list[0].id : null
+        })
       }
       setIsLoading(false)
     }
@@ -63,6 +69,34 @@ export function useChildProfiles(): UseChildProfilesResult {
 
   useEffect(() => {
     fetchProfiles()
+  }, [fetchProfiles])
+
+  // Reactive listener to update profiles immediately in-memory and re-sync
+  useEffect(() => {
+    const handleProgressUpdated = (evt: Event) => {
+      const customEvt = evt as CustomEvent<{ childId: string; xpAwarded?: number; starsAwarded?: number }>
+      if (customEvt?.detail?.childId) {
+        const { childId, xpAwarded = 0, starsAwarded = 0 } = customEvt.detail
+        setProfiles((prev) =>
+          prev.map((p) =>
+            p.id === childId
+              ? {
+                  ...p,
+                  xp: (p.xp || 0) + xpAwarded,
+                  stars: (p.stars || 0) + starsAwarded,
+                }
+              : p
+          )
+        )
+      }
+      void fetchProfiles()
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('orbis:child_progress_updated', handleProgressUpdated)
+      return () => {
+        window.removeEventListener('orbis:child_progress_updated', handleProgressUpdated)
+      }
+    }
   }, [fetchProfiles])
 
   const selectProfile = useCallback(
@@ -85,18 +119,19 @@ export function useChildProfiles(): UseChildProfilesResult {
 
   const createProfile = useCallback(
     async (input: CreateChildProfileInput): Promise<{ data: ChildProfile | null; error: string | null }> => {
-      if (!user?.id) {
-        return { data: null, error: 'User is not signed in.' }
-      }
+      const parentId = user?.id || 'guest'
 
-      const { data, error: createErr } = await childProfileService.createChildProfile(user.id, input)
+      const { data, error: createErr } = await childProfileService.createChildProfile(parentId, input)
 
       if (createErr || !data) {
         return { data: null, error: createErr?.message || 'Failed to create profile.' }
       }
 
       if (isMountedRef.current) {
-        setProfiles((prev) => [...prev, data])
+        setProfiles((prev) => {
+          const exists = prev.some((p) => p.id === data.id)
+          return exists ? prev.map((p) => (p.id === data.id ? data : p)) : [...prev, data]
+        })
         setSelectedProfileId(data.id)
       }
 
@@ -110,13 +145,11 @@ export function useChildProfiles(): UseChildProfilesResult {
       profileId: string,
       updates: UpdateChildProfileInput
     ): Promise<{ data: ChildProfile | null; error: string | null }> => {
-      if (!user?.id) {
-        return { data: null, error: 'User is not signed in.' }
-      }
+      const parentId = user?.id || 'guest'
 
       const { data, error: updateErr } = await childProfileService.updateChildProfile(
         profileId,
-        user.id,
+        parentId,
         updates
       )
 
@@ -135,21 +168,22 @@ export function useChildProfiles(): UseChildProfilesResult {
 
   const deleteProfile = useCallback(
     async (profileId: string): Promise<{ success: boolean; error: string | null }> => {
-      if (!user?.id) {
-        return { success: false, error: 'User is not signed in.' }
-      }
+      const parentId = user?.id || 'guest'
 
-      const { error: deleteErr } = await childProfileService.deleteChildProfile(profileId, user.id)
+      const { error: deleteErr } = await childProfileService.deleteChildProfile(profileId, parentId)
 
       if (deleteErr) {
         return { success: false, error: deleteErr.message }
       }
 
       if (isMountedRef.current) {
-        setProfiles((prev) => prev.filter((p) => p.id !== profileId))
-        if (selectedProfileId === profileId) {
-          setSelectedProfileId(null)
-        }
+        setProfiles((prev) => {
+          const next = prev.filter((p) => p.id !== profileId)
+          if (selectedProfileId === profileId) {
+            setSelectedProfileId(next.length > 0 ? next[0].id : null)
+          }
+          return next
+        })
       }
 
       return { success: true, error: null }
@@ -170,3 +204,4 @@ export function useChildProfiles(): UseChildProfilesResult {
     deleteProfile,
   }
 }
+

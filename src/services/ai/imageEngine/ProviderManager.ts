@@ -4,6 +4,7 @@ import { getAIConfig } from '../../../config/aiConfig'
 import { MockImageProvider } from '../mockImageProvider'
 import { GeminiImageProvider } from '../providers/gemini/geminiImageProvider'
 import { PollinationsImageProvider } from '../providers/pollinations/PollinationsImageProvider'
+import { ServerImageProvider } from '../providers/server/ServerImageProvider'
 import type { ImageProvider } from '../imageProvider'
 import type { ImageProviderRegistration, ProviderName } from './types'
 
@@ -23,11 +24,26 @@ export class ProviderManager {
 
   private registerBuiltInProviders(): void {
     this.register({
+      name: 'cloudflare',
+      provider: new ServerImageProvider(),
+    })
+
+    this.register({
+      name: 'server-flux',
+      provider: new ServerImageProvider(),
+    })
+
+    this.register({
+      name: 'server',
+      provider: new ServerImageProvider(),
+    })
+
+    this.register({
       name: 'mock',
       provider: new MockImageProvider(),
     })
 
-        this.register({
+    this.register({
       name: 'pollinations',
       provider: new PollinationsImageProvider(),
     })
@@ -81,5 +97,9 @@ export class ProviderManager {
 
   getActiveProviderName(): ProviderName | null {
     return this.activeProviderName
+  }
+
+  getProvider(name: ProviderName): ImageProvider | undefined {
+    return this.providers.get(name)
   }
 }

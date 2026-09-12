@@ -1,5 +1,6 @@
 import {
   generateCase,
+  generateProceduralMysteryCase,
   solveCase,
   validateCaseUniqueness,
   evaluateSuspectAgainstClue,
@@ -295,4 +296,24 @@ CURATED_DETECTIVE_CASES.forEach((c, idx) => {
   assert(!!c.scientificConcept.title && !!c.scientificConcept.description, `Case #${idx + 1} has Science of Wonder educational card`)
 })
 
-console.log('\n🎉 ALL 44 MYSTERY DETECTIVE ENGINE & GAMEPLAY ASSERTIONS PASSED!')
+// 11. Procedural Mystery Case Generator & Uniqueness Validation
+console.log('\n11. Testing Procedural Mystery Generator across Endless Seeds...')
+
+const procCaseEasy = generateProceduralMysteryCase('child_detective_leo_1', 'easy', 1)
+assert(!!procCaseEasy.id, 'Procedural easy case generated with valid ID')
+assert(procCaseEasy.suspectPool.length === 3, 'Procedural easy case has 3 suspects')
+assert(procCaseEasy.clues.length === 2, 'Procedural easy case has 2 clues')
+assert(validateCaseUniqueness(procCaseEasy) === true, 'Procedural easy case has guaranteed unique solution')
+assert(!!procCaseEasy.scientificConcept.title, 'Procedural case includes Science of Wonder concept')
+
+const procCaseMed = generateProceduralMysteryCase('child_detective_leo_2', 'medium', 3)
+assert(procCaseMed.suspectPool.length === 4, 'Procedural medium case has 4 suspects')
+assert(procCaseMed.clues.length === 3, 'Procedural medium case has 3 clues')
+assert(validateCaseUniqueness(procCaseMed) === true, 'Procedural medium case passes uniqueness constraint')
+
+const procCaseHard = generateProceduralMysteryCase('child_detective_leo_3', 'hard', 5)
+assert(procCaseHard.suspectPool.length === 5, 'Procedural hard case has 5 suspects')
+assert(procCaseHard.clues.length === 4, 'Procedural hard case has 4 clues')
+assert(validateCaseUniqueness(procCaseHard) === true, 'Procedural hard case passes uniqueness constraint')
+
+console.log('\n🎉 ALL 54 MYSTERY DETECTIVE ENGINE & GAMEPLAY ASSERTIONS PASSED!')

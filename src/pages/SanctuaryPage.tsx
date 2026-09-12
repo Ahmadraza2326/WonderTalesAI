@@ -12,7 +12,9 @@ import type { CreatureSpecies } from '../types/games/creatureLab'
 import { getCreatureById } from '../services/games/creatureLabEngine'
 import { SanctuaryHabitat } from '../components/sanctuary/SanctuaryHabitat'
 import { CreatureCareCard } from '../components/sanctuary/CreatureCareCard'
+import { StickyBackButton } from '../components/layout/StickyBackButton'
 import { sfxService } from '../services/audio/sfxService'
+import { HapticsService } from '../services/hapticsService'
 
 export function SanctuaryPage() {
   const navigate = useNavigate()
@@ -49,6 +51,7 @@ export function SanctuaryPage() {
   }, [childId, refreshSanctuary])
 
   const handleBiomeChange = (biome: SanctuaryBiome) => {
+    HapticsService.selection()
     sanctuaryService.setActiveBiome(childId, biome)
     setSanctuaryData((prev) => ({ ...prev, activeBiome: biome }))
   }
@@ -66,6 +69,7 @@ export function SanctuaryPage() {
         message: 'No creature selected',
       }
     }
+    HapticsService.medium()
     const result = sanctuaryService.petCreature(childId, selectedCreatureId)
     setSanctuaryData(sanctuaryService.getSanctuaryData(childId))
     return result
@@ -86,9 +90,19 @@ export function SanctuaryPage() {
       }
     }
     const result = sanctuaryService.feedCreature(childId, selectedCreatureId, treatId)
+    if (result.success) {
+      if (result.isFavorite || result.leveledUp) {
+        HapticsService.success()
+      } else {
+        HapticsService.medium()
+      }
+    } else {
+      HapticsService.warning()
+    }
     setSanctuaryData(sanctuaryService.getSanctuaryData(childId))
     return result
   }
+
 
   const handleRename = (nickname: string) => {
     if (!selectedCreatureId) return
@@ -117,6 +131,7 @@ export function SanctuaryPage() {
         padding: '24px 16px 60px',
       }}
     >
+      <StickyBackButton fallbackTo="/overworld" label="Overworld Map" />
       {/* Top Header & Navigation Bar */}
       <div
         style={{
@@ -176,7 +191,7 @@ export function SanctuaryPage() {
             type="button"
             onClick={() => {
               sfxService.play('card_flip')
-              navigate('/overworld')
+              navigate('/')
             }}
             className="button button-secondary"
             style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 700 }}

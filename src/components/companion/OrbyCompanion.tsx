@@ -2,24 +2,20 @@ import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { sfxService } from '../../services/audio/sfxService'
 import { speechService } from '../../services/audio/speechService'
+import { HapticsService } from '../../services/hapticsService'
 
 export type OrbyEmotion = 'happy' | 'thinking' | 'celebrate' | 'guiding' | 'sleepy'
 
 const ROUTE_TIPS: Record<string, { message: string; emotion: OrbyEmotion; tip: string }> = {
   '/': {
-    message: 'Welcome Explorer! Ready to craft a magical story or discover curious mini-games?',
+    message: 'Welcome to the Overworld Journey Map! Follow the glowing trail across 5 biomes!',
     emotion: 'happy',
-    tip: 'Tap "Create Story" or jump into "Games" to start earning Stars!',
+    tip: 'Each milestone unlocks new games, gadgets, and story seeds!',
   },
   '/dashboard': {
     message: 'Here is your Studio Command Center! Look at your daily streak and station progress!',
     emotion: 'guiding',
     tip: 'Complete daily cosmic challenges to level up faster!',
-  },
-  '/overworld': {
-    message: 'Welcome to the Overworld Journey Map! Follow the glowing trail across 5 biomes!',
-    emotion: 'happy',
-    tip: 'Each milestone unlocks new games, gadgets, and story seeds!',
   },
   '/games': {
     message: 'The Playroom Observatory is alive with wonder! Choose a station to master!',
@@ -50,6 +46,16 @@ const ROUTE_TIPS: Record<string, { message: string; emotion: OrbyEmotion; tip: s
     message: 'Your personal story library! Tap any tale to read, listen, or solve comprehension quests!',
     emotion: 'happy',
     tip: 'Finishing stories recommends matching mini-game stations!',
+  },
+  '/sanctuary': {
+    message: 'Welcome to the Creature Sanctuary! Pet and feed your hatched companions to earn Hearts & XP!',
+    emotion: 'happy',
+    tip: 'Match your companions with their favorite elemental treats for extra bonus Hearts!',
+  },
+  '/games/sanctuary': {
+    message: 'Welcome to the Creature Sanctuary! Pet and feed your hatched companions to earn Hearts & XP!',
+    emotion: 'happy',
+    tip: 'Match your companions with their favorite elemental treats for extra bonus Hearts!',
   },
   '/games/creature-lab': {
     message: 'Welcome to Creature Lab! Drag elemental essences into the cauldron to hatch mythical beasts!',
@@ -121,8 +127,9 @@ export const OrbyCompanion: React.FC = () => {
     return true
   })
 
-  // Current route context
-  const currentContext = ROUTE_TIPS[location.pathname] || {
+  // Current route context — normalize /overworld alias to canonical /
+  const lookupPath = location.pathname === '/overworld' ? '/' : location.pathname
+  const currentContext = ROUTE_TIPS[lookupPath] || {
     message: 'I am Orby, your star companion! Explore stories and magical games with me!',
     emotion: 'happy' as OrbyEmotion,
     tip: 'Tap on me anytime for hints and fun science facts!',
@@ -170,6 +177,7 @@ export const OrbyCompanion: React.FC = () => {
 
   const toggleVoice = (e: React.MouseEvent) => {
     e.stopPropagation()
+    HapticsService.light()
     const nextState = !isVoiceEnabled
     setIsVoiceEnabled(nextState)
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -195,6 +203,7 @@ export const OrbyCompanion: React.FC = () => {
   }
 
   const handleMascotTap = () => {
+    HapticsService.medium()
     sfxService.play('star_pop')
     setIsBouncing(true)
     setTimeout(() => setIsBouncing(false), 600)

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { useChildProfiles } from '../hooks/useChildProfiles'
 import { calculateAdventureProgress } from '../services/progressionService'
-import { OverworldJourneyMap } from '../components/overworld/OverworldJourneyMap'
+import { MasterCelestialOverworld } from '../components/overworld/celestial/MasterCelestialOverworld'
 
 export const OverworldPage: React.FC = () => {
   const { selectedProfile } = useChildProfiles()
@@ -26,7 +26,7 @@ export const OverworldPage: React.FC = () => {
         const p = window.localStorage.getItem(`orbis_potion_scales_completed_${selectedProfile.id}`)
         if (p) potionCount = JSON.parse(p).length
       } catch {
-        // Fallback
+        // Fallback safely
       }
     }
 
@@ -38,9 +38,6 @@ export const OverworldPage: React.FC = () => {
     })
   }, [selectedProfile])
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'transparent' }}>
-      <OverworldJourneyMap adventureProgress={adventureProgress} />
-    </div>
-  )
+  /* No wrapper div — MasterCelestialOverworld uses position: absolute to fill the viewport */
+  return <MasterCelestialOverworld adventureProgress={adventureProgress} />
 }

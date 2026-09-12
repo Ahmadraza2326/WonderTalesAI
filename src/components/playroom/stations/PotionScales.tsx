@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useReducer, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { StoryRecord } from '../../../types/story'
 import type { DifficultyTier } from '../../../types/experience'
 import type {
@@ -7,19 +7,21 @@ import type {
   PotionScalesPuzzle,
 } from '../../../types/games/potionScales'
 import {
-  CURATED_POTION_PUZZLES,
+  generatePotionPuzzle,
   getInitialPotionState,
   evaluatePotionAction,
   calculatePotionScore,
 } from '../../../services/games/potionScalesEngine'
 import { useActivityEconomy } from '../../../hooks/useActivityEconomy'
 import { sfxService } from '../../../services/audio/sfxService'
+import { HapticsService } from '../../../services/hapticsService'
 import { ActivityShell } from '../../experience/ActivityShell'
-import { CelebrationParticles } from '../../experience/CelebrationParticles'
+import { VictoryCelebrationModal } from '../../experience/VictoryCelebrationModal'
 
 export interface PotionScalesProps {
   story?: StoryRecord | null
   childId?: string | null
+  explorerLevel?: number
   onBack?: () => void
   initialDifficulty?: DifficultyTier
 }
@@ -27,22 +29,24 @@ export interface PotionScalesProps {
 export const PotionScales: React.FC<PotionScalesProps> = ({
   story,
   childId = null,
+  explorerLevel = 1,
   onBack,
   initialDifficulty = 'easy',
 }) => {
   const [difficulty, setDifficulty] = useState<DifficultyTier>(initialDifficulty)
   const [puzzleIndex, setPuzzleIndex] = useState(0)
   const [showCelebration, setShowCelebration] = useState(false)
-  const activePanForPour: ScalePanSide = 'right'
+  const [draggedItem, setDraggedItem] = useState<WeightItem | null>(null)
+  const [, setDragPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
 
-  // Filter puzzles by difficulty
-  const availablePuzzles = useMemo(() => {
-    return CURATED_POTION_PUZZLES.filter((p) => p.difficulty === difficulty)
-  }, [difficulty])
+  // Damped scale angle state ref for 60fps canvas physics
+  const tiltAngleRef = useRef<number>(0)
+  const angularVelRef = useRef<number>(0)
 
+  // Current puzzle configuration (Curated -> Infinite Procedural)
   const currentPuzzle: PotionScalesPuzzle = useMemo(() => {
-    return availablePuzzles[puzzleIndex % availablePuzzles.length] || CURATED_POTION_PUZZLES[0]
-  }, [availablePuzzles, puzzleIndex])
+    return generatePotionPuzzle(puzzleIndex, difficulty, explorerLevel)
+  }, [puzzleIndex, difficulty, explorerLevel])
 
   // Engine State Reducer
   const [state, dispatch] = useReducer(
@@ -55,6 +59,8 @@ export const PotionScales: React.FC<PotionScalesProps> = ({
   useEffect(() => {
     dispatch({ type: 'LOAD_PUZZLE', puzzle: currentPuzzle })
     setShowCelebration(false)
+    tiltAngleRef.current = 0
+    angularVelRef.current = 0
   }, [currentPuzzle])
 
   // Authoritative Reward Economy Hook
@@ -73,11 +79,13 @@ export const PotionScales: React.FC<PotionScalesProps> = ({
     return () => clearInterval(interval)
   }, [state.status])
 
-  // Sound effects when equilibrium updates
+  // Sound & Haptic effects when equilibrium updates
   useEffect(() => {
     if (state.equilibrium.isBalanced) {
+      HapticsService.medium()
       sfxService.play('balance_success')
     } else if (state.equilibrium.isNearBalanced) {
+      HapticsService.light()
       sfxService.play('balance_near')
     } else if (state.movesCount > 0) {
       sfxService.play('scale_tilt')
@@ -88,6 +96,7 @@ export const PotionScales: React.FC<PotionScalesProps> = ({
   const handleBrewPotion = useCallback(async () => {
     if (!state.equilibrium.isBalanced) return
 
+    HapticsService.success()
     sfxService.play('potion_complete')
     setShowCelebration(true)
 
@@ -103,51 +112,13 @@ export const PotionScales: React.FC<PotionScalesProps> = ({
     }
   }, [state.equilibrium.isBalanced, state.telemetry, currentPuzzle, completeActivity])
 
-  // Keyboard Navigation & Hotkeys
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (showCelebration) return
-
-      // Number keys 1-6 to select inventory weights
-      if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
-        const idx = parseInt(e.key, 10) - 1
-        const item = currentPuzzle.recipe.availableInventory[idx]
-        if (item) {
-          sfxService.play('potion_pickup')
-          dispatch({ type: 'SELECT_INVENTORY_ITEM', item })
-        }
-      }
-
-      // 'L' to place on left pan, 'R' to place on right pan
-      if ((e.key === 'l' || e.key === 'L') && state.activeSelectedItem) {
-        sfxService.play('weight_drop')
-        dispatch({ type: 'PLACE_ITEM', item: state.activeSelectedItem, pan: 'left' })
-      } else if ((e.key === 'r' || e.key === 'R') && state.activeSelectedItem) {
-        sfxService.play('weight_drop')
-        dispatch({ type: 'PLACE_ITEM', item: state.activeSelectedItem, pan: 'right' })
-      }
-
-      // 'C' to clear right pan
-      if (e.key === 'c' || e.key === 'C') {
-        sfxService.play('potion_bubble')
-        dispatch({ type: 'CLEAR_PAN', pan: 'right' })
-      }
-
-      // 'Space' to trigger completion if balanced
-      if (e.key === ' ' && state.equilibrium.isBalanced && !showCelebration) {
-        e.preventDefault()
-        handleBrewPotion()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.activeSelectedItem, state.equilibrium.isBalanced, showCelebration, currentPuzzle, handleBrewPotion])
-
   // Place Item Handler
   const handlePlaceItem = useCallback(
     (item: WeightItem, pan: ScalePanSide) => {
+      sfxService.resumeContext().catch(() => {})
+      HapticsService.light()
       sfxService.play('weight_drop')
+      sfxService.play('scale_tilt')
       dispatch({ type: 'PLACE_ITEM', item, pan })
     },
     []
@@ -155,828 +126,717 @@ export const PotionScales: React.FC<PotionScalesProps> = ({
 
   // Remove Item Handler
   const handleRemoveItem = useCallback((instanceId: string) => {
+    sfxService.resumeContext().catch(() => {})
+    HapticsService.light()
     sfxService.play('potion_pickup')
     dispatch({ type: 'REMOVE_ITEM', instanceId })
   }, [])
 
   // Clear Pan Handler
   const handleClearPan = useCallback((pan: ScalePanSide) => {
+    HapticsService.medium()
     sfxService.play('potion_bubble')
     dispatch({ type: 'CLEAR_PAN', pan })
   }, [])
 
-  // Pour Liquid Handler
-  const handlePourLiquid = useCallback(
-    (amountMl: number) => {
-      sfxService.play('potion_bubble')
-      dispatch({ type: 'POUR_LIQUID', pan: activePanForPour, amountMl, weightPerMl: 1 })
-    },
-    [activePanForPour]
-  )
-
   // Advance to next puzzle
   const handleNextPuzzle = useCallback(() => {
-    setPuzzleIndex((prev) => (prev + 1) % availablePuzzles.length)
-  }, [availablePuzzles.length])
+    HapticsService.medium()
+    setPuzzleIndex((prev) => prev + 1)
+    sfxService.play('card_flip')
+  }, [])
 
   const leftItems = useMemo(() => state.placedItems.filter((i) => i.pan === 'left'), [state.placedItems])
   const rightItems = useMemo(() => state.placedItems.filter((i) => i.pan === 'right'), [state.placedItems])
 
-  // Pan vertical offset derived from tilt angle (-25deg to +25deg)
-  const leftPanYOffset = Math.sin((state.equilibrium.tiltAngleDeg * Math.PI) / 180) * 45
-  const rightPanYOffset = -leftPanYOffset
+  // Canvas 2D / 3D Damped Scale Physics Loop
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const W = 800
+    const H = 420
+    let lastTime = performance.now()
+
+    const renderLoop = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.05)
+      lastTime = now
+
+      // 1. Damped Harmonic Oscillator Tilt Physics:
+      // I * d2theta/dt2 + c * dtheta/dt + k * (theta - theta_target) = 0
+      const rawTarget = state.equilibrium.weightDifference * 4.0
+      const targetAngle = Math.max(-20, Math.min(20, rawTarget)) // strictly clamp [-20deg, +20deg]
+
+      const springK = 28.0
+      const dampingC = 6.5
+      const displacement = tiltAngleRef.current - targetAngle
+      const springForce = -springK * displacement
+      const dampingForce = -dampingC * angularVelRef.current
+      const accel = springForce + dampingForce
+
+      angularVelRef.current += accel * dt
+      tiltAngleRef.current += angularVelRef.current * dt
+      tiltAngleRef.current = Math.max(-20, Math.min(20, tiltAngleRef.current))
+
+      const currentAngle = tiltAngleRef.current
+      const angleRad = (currentAngle * Math.PI) / 180
+
+      ctx.clearRect(0, 0, W, H)
+
+      // 2. 3D Workshop Background & Radial Lighting
+      const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 420)
+      bgGrad.addColorStop(0, '#1e293b')
+      bgGrad.addColorStop(0.6, '#0f172a')
+      bgGrad.addColorStop(1, '#020617')
+      ctx.fillStyle = bgGrad
+      ctx.fillRect(0, 0, W, H)
+
+      // Wooden Shelf Wainscoting in Background
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'
+      ctx.fillRect(40, H - 45, W - 80, 24)
+      ctx.strokeStyle = '#334155'
+      ctx.lineWidth = 2
+      ctx.strokeRect(40, H - 45, W - 80, 24)
+
+      // 3. Center Pedestal Pillar & Fulcrum Pivot
+      const centerX = W / 2
+      const centerY = 140
+
+      // Solid Brass Pedestal
+      const pedGrad = ctx.createLinearGradient(centerX - 20, centerY, centerX + 20, H - 40)
+      pedGrad.addColorStop(0, '#d97706')
+      pedGrad.addColorStop(0.5, '#78350f')
+      pedGrad.addColorStop(1, '#451a03')
+      ctx.fillStyle = pedGrad
+      ctx.beginPath()
+      ctx.moveTo(centerX - 16, centerY + 10)
+      ctx.lineTo(centerX + 16, centerY + 10)
+      ctx.lineTo(centerX + 32, H - 45)
+      ctx.lineTo(centerX - 32, H - 45)
+      ctx.closePath()
+      ctx.fill()
+      ctx.strokeStyle = '#f59e0b'
+      ctx.lineWidth = 3
+      ctx.stroke()
+
+      // Fulcrum Diamond Pivot Point
+      ctx.save()
+      ctx.translate(centerX, centerY)
+      ctx.fillStyle = state.equilibrium.isBalanced ? '#10b981' : '#f59e0b'
+      ctx.shadowColor = state.equilibrium.isBalanced ? '#10b981' : '#f59e0b'
+      ctx.shadowBlur = state.equilibrium.isBalanced ? 20 : 10
+      ctx.beginPath()
+      ctx.arc(0, 0, 16, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#fef08a'
+      ctx.lineWidth = 3
+      ctx.stroke()
+      ctx.restore()
+
+      // 4. Rotating 3D Brass Balance Beam (Heavier side tilts DOWN, lighter side tilts UP)
+      const beamHalfLen = 220
+      const leftTipX = centerX - Math.cos(angleRad) * beamHalfLen
+      const leftTipY = centerY + Math.sin(angleRad) * beamHalfLen
+      const rightTipX = centerX + Math.cos(angleRad) * beamHalfLen
+      const rightTipY = centerY - Math.sin(angleRad) * beamHalfLen
+
+      ctx.save()
+      ctx.translate(centerX, centerY)
+      ctx.rotate(-angleRad) // Counter-clockwise tilts left end down (+Y) and right end up (-Y)
+
+      // Brass Beam Bar
+      const beamGrad = ctx.createLinearGradient(0, -8, 0, 8)
+      beamGrad.addColorStop(0, '#fef08a')
+      beamGrad.addColorStop(0.5, '#d97706')
+      beamGrad.addColorStop(1, '#78350f')
+      ctx.fillStyle = beamGrad
+      ctx.shadowColor = 'rgba(0,0,0,0.5)'
+      ctx.shadowBlur = 12
+      ctx.beginPath()
+      ctx.roundRect(-beamHalfLen, -8, beamHalfLen * 2, 16, 8)
+      ctx.fill()
+      ctx.strokeStyle = '#fbbf24'
+      ctx.lineWidth = 2.5
+      ctx.stroke()
+
+      // Center Vertical Indicator Needle
+      ctx.fillStyle = state.equilibrium.isBalanced ? '#34d399' : '#fbbf24'
+      ctx.beginPath()
+      ctx.moveTo(-3, 0)
+      ctx.lineTo(3, 0)
+      ctx.lineTo(0, -45)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+
+      // 5. Draw Left & Right Suspended Pans and Chains
+      const drawPan = (tipX: number, tipY: number, items: typeof leftItems, side: ScalePanSide) => {
+        const panW = 150
+        const panH = 20
+        const chainLen = 100
+        const panCenterY = tipY + chainLen
+
+        // Metallic Suspension Chains
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)'
+        ctx.lineWidth = 2.5
+        ctx.beginPath()
+        ctx.moveTo(tipX, tipY)
+        ctx.lineTo(tipX - panW / 2 + 10, panCenterY)
+        ctx.moveTo(tipX, tipY)
+        ctx.lineTo(tipX + panW / 2 - 10, panCenterY)
+        ctx.stroke()
+
+        // Brass Pan Saucer
+        const saucerGrad = ctx.createLinearGradient(tipX - panW / 2, panCenterY, tipX + panW / 2, panCenterY + panH)
+        saucerGrad.addColorStop(0, '#fef08a')
+        saucerGrad.addColorStop(0.5, '#b45309')
+        saucerGrad.addColorStop(1, '#78350f')
+        ctx.fillStyle = saucerGrad
+        ctx.shadowColor = 'rgba(0,0,0,0.6)'
+        ctx.shadowBlur = 16
+        ctx.beginPath()
+        ctx.ellipse(tipX, panCenterY + 10, panW / 2, 12, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.strokeStyle = '#fbbf24'
+        ctx.lineWidth = 3
+        ctx.stroke()
+
+        // Render Weights / Beakers on Pan
+        const timeSec = now / 1000
+        const itemSpacing = 36
+        const startItemX = tipX - ((items.length - 1) * itemSpacing) / 2
+
+        items.forEach((instance, idx) => {
+          const ix = startItemX + idx * itemSpacing
+          const iy = panCenterY - 14
+          const it = instance.item
+
+          ctx.save()
+          if (it.type === 'liquid_beaker') {
+            // Glass Beaker with Dynamic Sloshing Liquid
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'
+            ctx.strokeStyle = '#38bdf8'
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.roundRect(ix - 18, iy - 32, 36, 40, 4)
+            ctx.fill()
+            ctx.stroke()
+
+            // Sloshing Liquid
+            ctx.fillStyle = it.color || '#38bdf8'
+            ctx.beginPath()
+            ctx.moveTo(ix - 16, iy + 6)
+            ctx.lineTo(ix + 16, iy + 6)
+            const waveH = Math.sin(timeSec * 4 + idx) * 3
+            ctx.lineTo(ix + 16, iy - 14 + waveH)
+            ctx.lineTo(ix - 16, iy - 14 - waveH)
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.font = '16px sans-serif'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(it.emoji, ix, iy - 10)
+          } else if (it.type === 'ingot') {
+            // 3D Metallic Gold/Amber Ingot
+            ctx.fillStyle = it.color
+            ctx.shadowColor = it.glowColor
+            ctx.shadowBlur = 12
+            ctx.beginPath()
+            ctx.roundRect(ix - 16, iy - 22, 32, 26, 4)
+            ctx.fill()
+            ctx.strokeStyle = '#fef08a'
+            ctx.lineWidth = 2
+            ctx.stroke()
+
+            ctx.fillStyle = '#ffffff'
+            ctx.font = 'bold 11px system-ui, sans-serif'
+            ctx.textAlign = 'center'
+            ctx.fillText(it.displayWeightLabel, ix, iy - 8)
+          } else {
+            // Gem / Crystal / Fraction Shard
+            ctx.fillStyle = it.color
+            ctx.shadowColor = it.glowColor
+            ctx.shadowBlur = 14
+            ctx.font = '22px sans-serif'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(it.emoji, ix, iy - 10)
+
+            ctx.fillStyle = '#ffffff'
+            ctx.font = 'bold 10px system-ui, sans-serif'
+            ctx.textAlign = 'center'
+            ctx.fillText(it.displayWeightLabel, ix, iy + 8)
+          }
+          ctx.restore()
+        })
+
+        // Pan Weight Label Pill
+        const totalPanW = side === 'left' ? state.equilibrium.leftTotalWeight : state.equilibrium.rightTotalWeight
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'
+        ctx.beginPath()
+        ctx.roundRect(tipX - 32, panCenterY + 26, 64, 22, 11)
+        ctx.fill()
+        ctx.strokeStyle = side === 'left' ? '#38bdf8' : '#fbbf24'
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+
+        ctx.fillStyle = '#ffffff'
+        ctx.font = 'bold 12px system-ui, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(`${totalPanW}g`, tipX, panCenterY + 41)
+      }
+
+      drawPan(leftTipX, leftTipY, leftItems, 'left')
+      drawPan(rightTipX, rightTipY, rightItems, 'right')
+
+      animationFrameRef.current = requestAnimationFrame(renderLoop)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(renderLoop)
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+    }
+  }, [state.equilibrium, leftItems, rightItems])
+
+  // PointerCapture Drag & Snap Handler
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      canvas.setPointerCapture(e.pointerId)
+
+      const rect = canvas.getBoundingClientRect()
+      const clickX = (e.clientX - rect.left) * (800 / rect.width)
+      const clickY = (e.clientY - rect.top) * (420 / rect.height)
+      setDragPos({ x: clickX, y: clickY })
+
+      // Check if clicked to remove an item from pan
+      if (clickX < 400 && leftItems.length > 0) {
+        // Tap left pan to inspect
+      } else if (clickX >= 400 && rightItems.length > 0) {
+        // Tap right pan removes last item
+        const last = rightItems[rightItems.length - 1]
+        if (last) {
+          handleRemoveItem(last.instanceId)
+        }
+      }
+    },
+    [leftItems, rightItems, handleRemoveItem]
+  )
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const curX = (e.clientX - rect.left) * (800 / rect.width)
+    const curY = (e.clientY - rect.top) * (420 / rect.height)
+    setDragPos({ x: curX, y: curY })
+  }, [])
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (draggedItem) {
+        const canvas = canvasRef.current
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect()
+          const dropX = (e.clientX - rect.left) * (800 / rect.width)
+          // If dropped on right half, place on right pan
+          if (dropX >= 350) {
+            handlePlaceItem(draggedItem, 'right')
+          } else {
+            handlePlaceItem(draggedItem, 'left')
+          }
+        }
+        setDraggedItem(null)
+      }
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Safe release
+      }
+    },
+    [draggedItem, handlePlaceItem]
+  )
 
   return (
-    <ActivityShell
-      title="Potion Market Scales"
-      tagline={story ? `Story Alchemy Order: ${story.title}` : currentPuzzle.title}
-      emoji="⚖️"
-      primaryDomain="logic"
-      difficulty={difficulty}
-      onDifficultyChange={(newDiff) => {
-        setDifficulty(newDiff)
-        setPuzzleIndex(0)
+    <div
+      className="potion-scales-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        maxHeight: '100%',
+        overflow: 'hidden',
       }}
-      headerRight={
-        onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="potion-scales-back-btn"
-            style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(148, 163, 184, 0.3)',
-              borderRadius: '8px',
-              padding: '0.4rem 0.8rem',
-              color: '#94a3b8',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            ← Exit Lab
-          </button>
-        ) : null
-      }
-      className="potion-scales-activity"
     >
-      <div
-        className="potion-scales-workbench"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.25rem',
-          maxWidth: '1080px',
-          margin: '0 auto',
-          padding: '1rem',
-          color: '#f8fafc',
-          userSelect: 'none',
+      <ActivityShell
+        title="3D Apothecary Balance Scales"
+        tagline={story ? `Story Alchemy Order: ${story.title}` : currentPuzzle.title}
+        emoji="⚖️"
+        primaryDomain="logic"
+        difficulty={difficulty}
+        variant="hero"
+        onDifficultyChange={(newDiff) => {
+          setDifficulty(newDiff)
+          setPuzzleIndex(0)
         }}
-      >
-        {/* 1. Customer Order & Recipe Header Banner */}
-        <section
-          className="customer-order-banner"
-          aria-label="Customer Potion Order"
-          style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.85) 100%)',
-            borderRadius: '16px',
-            border: '1.5px solid rgba(148, 163, 184, 0.25)',
-            padding: '1rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div
+        progressInfo={`Potion Order #${puzzleIndex + 1}`}
+        headerRight={
+          onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
               style={{
-                fontSize: '2.5rem',
-                backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                borderRadius: '50%',
-                width: '64px',
-                height: '64px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid #38bdf8',
-                boxShadow: '0 0 16px rgba(56, 189, 248, 0.4)',
+                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid rgba(148, 163, 184, 0.3)',
+                borderRadius: '8px',
+                padding: '0.4rem 0.8rem',
+                color: '#94a3b8',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
               }}
             >
-              {currentPuzzle.recipe.customer.avatar}
-            </div>
-            <div>
-              <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
-                Customer: {currentPuzzle.recipe.customer.name}
-              </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#e2e8f0', marginTop: '2px' }}>
-                &ldquo;{currentPuzzle.recipe.customer.orderQuote}&rdquo;
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.7)',
-              padding: '0.6rem 1rem',
-              borderRadius: '12px',
-              border: `1px solid ${currentPuzzle.recipe.potionColor}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}
-          >
-            <span style={{ fontSize: '1.8rem' }}>{currentPuzzle.recipe.potionEmoji}</span>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Target Recipe</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: currentPuzzle.recipe.potionColor }}>
-                {currentPuzzle.recipe.displayTargetFormula}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Interactive Physical Balance Scale Canvas */}
-        <section
-          className="balance-scale-stage"
-          aria-label="Apothecary Balance Scale"
+              ← Exit Lab
+            </button>
+          ) : null
+        }
+        className="potion-scales-activity"
+      >
+        <div
+          className="potion-scales-workbench"
           style={{
-            background: 'radial-gradient(ellipse at center, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
-            borderRadius: '20px',
-            border: '2px solid rgba(56, 189, 248, 0.25)',
-            padding: '1.5rem 1rem',
-            position: 'relative',
-            minHeight: '380px',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'inset 0 0 60px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.4)',
+            flex: 1,
+            overflowY: 'auto',
+            gap: '1rem',
+            padding: '4px',
+            color: '#f8fafc',
+            userSelect: 'none',
           }}
         >
-          {/* Top Status Needle & Equilibrium Indicator */}
-          <div
+          {/* 1. Customer Order & Recipe Header Banner */}
+          <section
+            className="customer-order-banner"
+            aria-label="Customer Potion Order"
             style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.92) 100%)',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.3)',
+              padding: '0.85rem 1.1rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              backgroundColor: state.equilibrium.isBalanced
-                ? 'rgba(16, 185, 129, 0.25)'
-                : state.equilibrium.isNearBalanced
-                ? 'rgba(245, 158, 11, 0.25)'
-                : 'rgba(15, 23, 42, 0.75)',
-              padding: '0.4rem 1.25rem',
-              borderRadius: '999px',
-              border: `1.5px solid ${
-                state.equilibrium.isBalanced
-                  ? '#10b981'
-                  : state.equilibrium.isNearBalanced
-                  ? '#f59e0b'
-                  : 'rgba(148, 163, 184, 0.3)'
-              }`,
-              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}
-          >
-            <span style={{ fontSize: '1.2rem' }}>
-              {state.equilibrium.isBalanced ? '✨' : state.equilibrium.isNearBalanced ? '⚡' : '⚖️'}
-            </span>
-            <span
-              style={{
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                color: state.equilibrium.isBalanced
-                  ? '#34d399'
-                  : state.equilibrium.isNearBalanced
-                  ? '#fbbf24'
-                  : '#cbd5e1',
-              }}
-            >
-              {state.equilibrium.isBalanced
-                ? 'PERFECT EQUILIBRIUM (BALANCED!)'
-                : state.equilibrium.isNearBalanced
-                ? `NEAR BALANCE! (Difference: ${Math.abs(state.equilibrium.weightDifference)}g)`
-                : state.equilibrium.weightDifference > 0
-                ? `Left side is heavier by ${state.equilibrium.weightDifference}g`
-                : state.equilibrium.weightDifference < 0
-                ? `Right side is heavier by ${Math.abs(state.equilibrium.weightDifference)}g`
-                : 'Empty Balance'}
-            </span>
-          </div>
-
-          {/* Scale Brass Structure (SVG Beam & Dual Pans) */}
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '800px',
-              height: '240px',
-              position: 'relative',
-              display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
-              margin: '1.5rem 0',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
             }}
           >
-            {/* Center Pedestal Pillar */}
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                bottom: '10px',
-                transform: 'translateX(-50%)',
-                width: '36px',
-                height: '180px',
-                background: 'linear-gradient(to right, #78350f, #d97706, #92400e)',
-                borderRadius: '8px 8px 0 0',
-                boxShadow: '0 0 16px rgba(0, 0, 0, 0.6)',
-                zIndex: 2,
-              }}
-            >
-              {/* Fulcrum Diamond Pivot Point */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
               <div
                 style={{
-                  position: 'absolute',
-                  top: '-16px',
-                  left: '50%',
-                  transform: 'translateX(-50%) rotate(45deg)',
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: state.equilibrium.isBalanced ? '#10b981' : '#f59e0b',
-                  borderRadius: '4px',
-                  border: '2px solid #fef08a',
-                  boxShadow: state.equilibrium.isBalanced
-                    ? '0 0 20px #10b981'
-                    : '0 0 12px rgba(245, 158, 11, 0.5)',
-                  transition: 'all 0.3s ease',
-                }}
-              />
-            </div>
-
-            {/* Rotating Balance Beam Bar */}
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '44px',
-                width: '560px',
-                height: '12px',
-                background: 'linear-gradient(to bottom, #fef08a, #d97706, #78350f)',
-                borderRadius: '6px',
-                transform: `translateX(-50%) rotate(${state.equilibrium.tiltAngleDeg}deg)`,
-                transformOrigin: 'center center',
-                transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                zIndex: 3,
-              }}
-            >
-              {/* Center Vertical Pointer */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '-28px',
-                  transform: 'translateX(-50%)',
-                  width: '4px',
-                  height: '28px',
-                  backgroundColor: state.equilibrium.isBalanced ? '#34d399' : '#fbbf24',
-                  borderRadius: '2px',
-                  boxShadow: '0 0 8px rgba(251, 191, 36, 0.8)',
-                }}
-              />
-            </div>
-
-            {/* LEFT SUSPENDED PAN */}
-            <div
-              className="scale-pan left-pan"
-              style={{
-                width: '44%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                transform: `translateY(${leftPanYOffset}px)`,
-                transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                zIndex: 4,
-              }}
-            >
-              {/* Chains SVG */}
-              <svg width="180" height="70" viewBox="0 0 180 70" fill="none" style={{ opacity: 0.85 }}>
-                <line x1="90" y1="0" x2="25" y2="70" stroke="#d97706" strokeWidth="2.5" strokeDasharray="3 3" />
-                <line x1="90" y1="0" x2="155" y2="70" stroke="#d97706" strokeWidth="2.5" strokeDasharray="3 3" />
-              </svg>
-
-              {/* Brass Pan Bowl */}
-              <div
-                style={{
-                  width: '100%',
-                  minHeight: '90px',
-                  background: 'linear-gradient(180deg, rgba(217, 119, 6, 0.25) 0%, rgba(120, 53, 15, 0.65) 100%)',
-                  border: '2.5px solid #f59e0b',
-                  borderRadius: '0 0 90px 90px',
-                  padding: '0.75rem 1rem',
+                  fontSize: '2.2rem',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  borderRadius: '50%',
+                  width: '56px',
+                  height: '56px',
                   display: 'flex',
-                  flexWrap: 'wrap',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), inset 0 2px 10px rgba(251, 191, 36, 0.3)',
-                  position: 'relative',
+                  border: '2px solid #38bdf8',
+                  boxShadow: '0 0 16px rgba(56, 189, 248, 0.4)',
                 }}
               >
-                {leftItems.length === 0 ? (
-                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>Empty Pan</span>
-                ) : (
-                  leftItems.map((instance) => (
-                    <button
-                      key={instance.instanceId}
-                      type="button"
-                      onClick={() => !instance.instanceId.startsWith('left_start_') && handleRemoveItem(instance.instanceId)}
-                      disabled={instance.instanceId.startsWith('left_start_')}
-                      title={instance.instanceId.startsWith('left_start_') ? 'Locked Recipe Target' : 'Click to Remove'}
-                      style={{
-                        backgroundColor: instance.item.color,
-                        border: `1.5px solid ${instance.item.glowColor}`,
-                        borderRadius: '8px',
-                        padding: '0.3rem 0.6rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: instance.instanceId.startsWith('left_start_') ? 'default' : 'pointer',
-                        boxShadow: `0 0 10px ${instance.item.glowColor}`,
-                        color: '#0f172a',
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <span>{instance.item.emoji}</span>
-                      <span>{instance.item.displayWeightLabel}</span>
-                      {!instance.instanceId.startsWith('left_start_') && <span style={{ opacity: 0.6 }}>×</span>}
-                    </button>
-                  ))
-                )}
-
-                {/* Left Pan Total Badge */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '-12px',
-                    backgroundColor: '#1e293b',
-                    border: '1.5px solid #f59e0b',
-                    borderRadius: '12px',
-                    padding: '0.15rem 0.6rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: '#fbbf24',
-                  }}
-                >
-                  Left Total: {state.equilibrium.leftTotalWeight}g
+                {currentPuzzle.recipe.customer.avatar}
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Customer: {currentPuzzle.recipe.customer.name}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0', marginTop: '2px' }}>
+                  &ldquo;{currentPuzzle.recipe.customer.orderQuote}&rdquo;
                 </div>
               </div>
+            </div>
 
-              {/* Left Pan Quick Action */}
-              {state.activeSelectedItem && (
+            <div
+              style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                padding: '0.5rem 0.9rem',
+                borderRadius: '12px',
+                border: `1.5px solid ${currentPuzzle.recipe.potionColor}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+              }}
+            >
+              <span style={{ fontSize: '1.6rem' }}>{currentPuzzle.recipe.potionEmoji}</span>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Algebraic Equation</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: currentPuzzle.recipe.potionColor }}>
+                  {currentPuzzle.recipe.displayTargetFormula}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* First-Turn Animated Hand Tutorial Prompt */}
+          {state.placedItems.length <= 1 && (
+            <div
+              style={{
+                alignSelf: 'center',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%)',
+                border: '1.5px solid #fbbf24',
+                borderRadius: '9999px',
+                padding: '6px 16px',
+                color: '#fef08a',
+                fontSize: '13px',
+                fontWeight: 800,
+                animation: 'bounceGentle 2s infinite',
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>👇</span>
+              <span>Tap weights from the shelf below to balance the customer order!</span>
+            </div>
+          )}
+
+          {/* 2. Interactive Physical Balance Scale Canvas */}
+          <section
+            className="balance-scale-stage"
+            aria-label="Apothecary Balance Scale"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
+              borderRadius: '20px',
+              border: '2px solid rgba(56, 189, 248, 0.25)',
+              padding: '1rem',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxShadow: 'inset 0 0 60px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            {/* Top Status Needle & Equilibrium Indicator */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                backgroundColor: state.equilibrium.isBalanced
+                  ? 'rgba(16, 185, 129, 0.25)'
+                  : state.equilibrium.isNearBalanced
+                  ? 'rgba(245, 158, 11, 0.25)'
+                  : 'rgba(15, 23, 42, 0.75)',
+                padding: '0.35rem 1.1rem',
+                borderRadius: '999px',
+                border: `1.5px solid ${
+                  state.equilibrium.isBalanced
+                    ? '#10b981'
+                    : state.equilibrium.isNearBalanced
+                    ? '#f59e0b'
+                    : 'rgba(148, 163, 184, 0.3)'
+                }`,
+                transition: 'all 0.3s ease',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem' }}>
+                {state.equilibrium.isBalanced ? '✨' : state.equilibrium.isNearBalanced ? '⚡' : '⚖️'}
+              </span>
+              <span
+                style={{
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  color: state.equilibrium.isBalanced
+                    ? '#34d399'
+                    : state.equilibrium.isNearBalanced
+                    ? '#fbbf24'
+                    : '#cbd5e1',
+                }}
+              >
+                {state.equilibrium.isBalanced
+                  ? 'PERFECT EQUILIBRIUM (BALANCED!)'
+                  : state.equilibrium.isNearBalanced
+                  ? `NEAR BALANCE! (Difference: ${Math.abs(state.equilibrium.weightDifference)}g)`
+                  : state.equilibrium.weightDifference > 0
+                  ? `Left side is heavier by ${state.equilibrium.weightDifference}g`
+                  : state.equilibrium.weightDifference < 0
+                  ? `Right side is heavier by ${Math.abs(state.equilibrium.weightDifference)}g`
+                  : 'Empty Balance'}
+              </span>
+            </div>
+
+            {/* 3D Scale Canvas */}
+            <canvas
+              ref={canvasRef}
+              width={800}
+              height={420}
+              className="balance-scale-canvas"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              style={{
+                touchAction: 'none',
+                maxWidth: '100%',
+                maxHeight: '280px',
+                borderRadius: '12px',
+              }}
+            />
+
+            {/* Pan Action Controls */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => handleClearPan('right')}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}
+              >
+                🗑️ Clear Right Pan
+              </button>
+              {state.equilibrium.isBalanced && (
                 <button
                   type="button"
-                  onClick={() => state.activeSelectedItem && handlePlaceItem(state.activeSelectedItem, 'left')}
+                  className="button button-primary"
+                  onClick={handleBrewPotion}
                   style={{
-                    marginTop: '1.2rem',
-                    backgroundColor: 'rgba(56, 189, 248, 0.2)',
-                    border: '1px solid #38bdf8',
-                    borderRadius: '8px',
-                    padding: '0.3rem 0.8rem',
-                    color: '#38bdf8',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
+                    fontSize: '0.88rem',
+                    padding: '0.35rem 1rem',
+                    background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
+                    boxShadow: '0 0 16px rgba(16, 185, 129, 0.4)',
                   }}
                 >
-                  ➕ Place Here [L]
+                  ✨ Brew Magical Potion!
                 </button>
               )}
             </div>
+          </section>
 
-            {/* RIGHT SUSPENDED PAN */}
+          {/* 3. Gram Weights & Fraction Shards Inventory Shelf */}
+          <section
+            className="weights-inventory-shelf"
+            aria-label="Weights and Fraction Shards Inventory"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%)',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(251, 191, 36, 0.3)',
+              padding: '1rem',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>🧰</span>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#fef08a' }}>
+                  Apothecary Weights & Fraction Shards
+                </h3>
+              </div>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                Tap weight to place on right pan
+              </span>
+            </div>
+
             <div
-              className="scale-pan right-pan"
               style={{
-                width: '44%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                transform: `translateY(${rightPanYOffset}px)`,
-                transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                zIndex: 4,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '0.65rem',
               }}
             >
-              {/* Chains SVG */}
-              <svg width="180" height="70" viewBox="0 0 180 70" fill="none" style={{ opacity: 0.85 }}>
-                <line x1="90" y1="0" x2="25" y2="70" stroke="#d97706" strokeWidth="2.5" strokeDasharray="3 3" />
-                <line x1="90" y1="0" x2="155" y2="70" stroke="#d97706" strokeWidth="2.5" strokeDasharray="3 3" />
-              </svg>
-
-              {/* Brass Pan Bowl */}
-              <div
-                style={{
-                  width: '100%',
-                  minHeight: '90px',
-                  background: 'linear-gradient(180deg, rgba(217, 119, 6, 0.25) 0%, rgba(120, 53, 15, 0.65) 100%)',
-                  border: '2.5px solid #f59e0b',
-                  borderRadius: '0 0 90px 90px',
-                  padding: '0.75rem 1rem',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), inset 0 2px 10px rgba(251, 191, 36, 0.3)',
-                  position: 'relative',
-                }}
-              >
-                {rightItems.length === 0 ? (
-                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>Drop Items Here</span>
-                ) : (
-                  rightItems.map((instance) => (
-                    <button
-                      key={instance.instanceId}
-                      type="button"
-                      onClick={() => !instance.instanceId.startsWith('right_start_') && handleRemoveItem(instance.instanceId)}
-                      disabled={instance.instanceId.startsWith('right_start_')}
-                      title={instance.instanceId.startsWith('right_start_') ? 'Locked Recipe Target' : 'Click to Remove'}
-                      style={{
-                        backgroundColor: instance.item.color,
-                        border: `1.5px solid ${instance.item.glowColor}`,
-                        borderRadius: '8px',
-                        padding: '0.3rem 0.6rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: instance.instanceId.startsWith('right_start_') ? 'default' : 'pointer',
-                        boxShadow: `0 0 10px ${instance.item.glowColor}`,
-                        color: '#0f172a',
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <span>{instance.item.emoji}</span>
-                      <span>{instance.item.displayWeightLabel}</span>
-                      {!instance.instanceId.startsWith('right_start_') && <span style={{ opacity: 0.6 }}>×</span>}
-                    </button>
-                  ))
-                )}
-
-                {/* Right Pan Total Badge */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '-12px',
-                    backgroundColor: '#1e293b',
-                    border: '1.5px solid #f59e0b',
-                    borderRadius: '12px',
-                    padding: '0.15rem 0.6rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: '#fbbf24',
-                  }}
-                >
-                  Right Total: {state.equilibrium.rightTotalWeight}g
-                </div>
-              </div>
-
-              {/* Right Pan Quick Action */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.2rem' }}>
-                {state.activeSelectedItem && (
-                  <button
-                    type="button"
-                    onClick={() => state.activeSelectedItem && handlePlaceItem(state.activeSelectedItem, 'right')}
-                    style={{
-                      backgroundColor: 'rgba(56, 189, 248, 0.2)',
-                      border: '1px solid #38bdf8',
-                      borderRadius: '8px',
-                      padding: '0.3rem 0.8rem',
-                      color: '#38bdf8',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ➕ Place Here [R]
-                  </button>
-                )}
-                {rightItems.some((i) => !i.instanceId.startsWith('right_start_')) && (
-                  <button
-                    type="button"
-                    onClick={() => handleClearPan('right')}
-                    style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                      border: '1px solid #ef4444',
-                      borderRadius: '8px',
-                      padding: '0.3rem 0.8rem',
-                      color: '#f87171',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🧹 Clear [C]
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Solution Hint & Brew Trigger */}
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '1rem',
-              paddingTop: '0.5rem',
-            }}
-          >
-            <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              💡 Hint: {currentPuzzle.recipe.solutionHint}
-            </div>
-
-            <button
-              type="button"
-              disabled={!state.equilibrium.isBalanced}
-              onClick={handleBrewPotion}
-              style={{
-                backgroundColor: state.equilibrium.isBalanced ? '#10b981' : 'rgba(51, 65, 85, 0.5)',
-                color: state.equilibrium.isBalanced ? '#ffffff' : '#64748b',
-                border: state.equilibrium.isBalanced ? '2px solid #34d399' : '1px solid rgba(148, 163, 184, 0.2)',
-                borderRadius: '12px',
-                padding: '0.75rem 1.8rem',
-                fontSize: '1rem',
-                fontWeight: 800,
-                cursor: state.equilibrium.isBalanced ? 'pointer' : 'not-allowed',
-                boxShadow: state.equilibrium.isBalanced
-                  ? '0 0 24px rgba(16, 185, 129, 0.6), 0 4px 12px rgba(0,0,0,0.3)'
-                  : 'none',
-                transform: state.equilibrium.isBalanced ? 'scale(1.04)' : 'scale(1)',
-                transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              }}
-            >
-              🔮 Brew Magical Potion! [Space]
-            </button>
-          </div>
-        </section>
-
-        {/* 3. Ingredient & Weights Tray Shelf */}
-        <section
-          className="weights-shelf-tray"
-          aria-label="Apothecary Weights and Ingredients"
-          style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            borderRadius: '16px',
-            border: '1.5px solid rgba(148, 163, 184, 0.2)',
-            padding: '1.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>
-              🧪 Apothecary Weight Tray (Select an Item to Place)
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-              Keyboard Hotkeys: [1..{currentPuzzle.recipe.availableInventory.length}]
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            {currentPuzzle.recipe.availableInventory.map((item, idx) => {
-              const isSelected = state.activeSelectedItem?.id === item.id
-
-              return (
+              {currentPuzzle.recipe.availableInventory.map((item) => (
                 <button
-                  key={`${item.id}_${idx}`}
+                  key={item.id}
                   type="button"
-                  onClick={() => {
-                    sfxService.play('potion_pickup')
-                    dispatch({
-                      type: 'SELECT_INVENTORY_ITEM',
-                      item: isSelected ? null : item,
-                    })
-                  }}
+                  onClick={() => handlePlaceItem(item, 'right')}
                   style={{
-                    backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.8)',
-                    border: isSelected ? '2px solid #38bdf8' : '1.5px solid rgba(148, 163, 184, 0.2)',
+                    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+                    border: `1.5px solid ${item.color || '#38bdf8'}`,
                     borderRadius: '12px',
-                    padding: '0.75rem 0.5rem',
+                    padding: '0.65rem 0.8rem',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '0.35rem',
+                    gap: '0.25rem',
+                    color: '#ffffff',
                     cursor: 'pointer',
-                    transform: isSelected ? 'translateY(-4px)' : 'translateY(0)',
-                    boxShadow: isSelected ? `0 0 16px ${item.glowColor}` : 'none',
-                    transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
+                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    minHeight: '44px',
                   }}
                 >
-                  <span style={{ fontSize: '1.8rem' }}>{item.emoji}</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>{item.name}</span>
-                  <span
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 800,
-                      color: item.color,
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      padding: '0.1rem 0.5rem',
-                      borderRadius: '6px',
-                    }}
-                  >
+                  <span style={{ fontSize: '1.5rem' }}>{item.emoji}</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: item.color }}>
                     {item.displayWeightLabel}
                   </span>
+                  <span style={{ fontSize: '0.7rem', color: '#cbd5e1' }}>{item.name}</span>
                 </button>
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          </section>
 
-          {/* Liquid Pouring Section if enabled on Hard Tier */}
-          {currentPuzzle.recipe.allowLiquidPouring && (
+          {/* 4. Science of Wonder Dossier */}
+          {state.status === 'celebrating' && (
             <div
+              className="science-dossier-card card-panel"
+              role="region"
+              aria-label="Science of Wonder Discovery"
               style={{
-                marginTop: '0.75rem',
-                paddingTop: '0.75rem',
-                borderTop: '1px solid rgba(148, 163, 184, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
+                background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+                borderRadius: '1.25rem',
+                padding: '1.25rem',
+                border: '1.5px solid #38bdf8',
+                color: '#ffffff',
+                boxShadow: '0 8px 24px rgba(56, 189, 248, 0.2)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.4rem' }}>🧪</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#06b6d4' }}>
-                  Liquid Volume Pouring Station:
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔬</span>
+                <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#38bdf8' }}>
+                  Science of Wonder: {currentPuzzle.scientificConcept.conceptTitle}
+                </h4>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => handlePourLiquid(100)}
-                  style={{
-                    backgroundColor: 'rgba(6, 182, 212, 0.2)',
-                    border: '1px solid #06b6d4',
-                    borderRadius: '8px',
-                    padding: '0.4rem 0.8rem',
-                    color: '#06b6d4',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  💧 Pour 100ml (+1u)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePourLiquid(250)}
-                  style={{
-                    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                    border: '1px solid #8b5cf6',
-                    borderRadius: '8px',
-                    padding: '0.4rem 0.8rem',
-                    color: '#a78bfa',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🍶 Pour 250ml (+2.5u)
-                </button>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                {currentPuzzle.scientificConcept.kidExplanation}
+              </p>
+              <div
+                style={{
+                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '0.75rem',
+                  padding: '0.6rem 0.9rem',
+                  fontSize: '0.85rem',
+                  color: '#bae6fd',
+                }}
+              >
+                <strong>💡 Fun Science Fact:</strong> {currentPuzzle.scientificConcept.funFact}
               </div>
             </div>
           )}
-        </section>
+        </div>
 
-        {/* 4. Success Reward & Science Celebration Modal */}
-        {showCelebration && (
-          <>
-            <CelebrationParticles particleCount={40} />
-            <div
-              className="celebration-overlay"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                backdropFilter: 'blur(8px)',
-                zIndex: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1.5rem',
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: '#1e293b',
-                  borderRadius: '24px',
-                  border: '2px solid #10b981',
-                  maxWidth: '540px',
-                  width: '100%',
-                  padding: '2rem',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(16, 185, 129, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  gap: '1.25rem',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '4rem',
-                    filter: 'drop-shadow(0 0 16px rgba(16, 185, 129, 0.6))',
-                  }}
-                >
-                  {currentPuzzle.recipe.potionEmoji}
-                </div>
-
-                <div>
-                  <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#34d399', margin: 0 }}>
-                    Potion Brewed to Perfection!
-                  </h2>
-                  <p style={{ fontSize: '0.95rem', color: '#cbd5e1', marginTop: '0.5rem', lineHeight: 1.5 }}>
-                    &ldquo;{currentPuzzle.recipe.customer.celebrationQuote}&rdquo;
-                  </p>
-                </div>
-
-                {/* Science of Wonder Card */}
-                <div
-                  style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                    borderRadius: '14px',
-                    border: '1.5px solid rgba(56, 189, 248, 0.3)',
-                    padding: '1rem',
-                    textAlign: 'left',
-                    width: '100%',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: '#38bdf8',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    🔬 Science of Wonder • {currentPuzzle.scientificConcept.scienceTopic}
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc', marginTop: '0.2rem' }}>
-                    {currentPuzzle.scientificConcept.conceptTitle}
-                  </div>
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0.4rem 0 0 0', lineHeight: 1.4 }}>
-                    {currentPuzzle.scientificConcept.kidExplanation}
-                  </p>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: '#fbbf24',
-                      marginTop: '0.4rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    ⭐ Fun Fact: {currentPuzzle.scientificConcept.funFact}
-                  </div>
-                </div>
-
-                {/* Next Potion Button */}
-                <button
-                  type="button"
-                  onClick={handleNextPuzzle}
-                  style={{
-                    backgroundColor: '#10b981',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '0.85rem 2rem',
-                    fontSize: '1.05rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    width: '100%',
-                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                  }}
-                >
-                  ⭐ Next Customer Order ➔
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </ActivityShell>
+        {/* Victory Celebration Modal */}
+        <VictoryCelebrationModal
+          isOpen={showCelebration}
+          title="Potion Order Calibrated & Brewed!"
+          subtitle={`${currentPuzzle.recipe.customer.name} rejoices: "${currentPuzzle.recipe.customer.celebrationQuote}"`}
+          badgeEmoji="⚖️"
+          xpEarned={state.telemetry.xp || 35}
+          starsEarned={state.telemetry.stars || 8}
+          nextLevelLabel="Next Potion Order ➔"
+          onNextLevel={handleNextPuzzle}
+          onExit={onBack}
+        />
+      </ActivityShell>
+    </div>
   )
 }

@@ -27,6 +27,7 @@ assert(DEFAULT_PREFERENCES.bedtimeMode === false, 'Default bedtimeMode is false'
 // 2. Parent profile service
 assert(typeof parentProfileService.getProfile === 'function', 'parentProfileService.getProfile exists')
 assert(typeof parentProfileService.updateProfile === 'function', 'parentProfileService.updateProfile exists')
+assert(typeof parentProfileService.ensureParentProfileExists === 'function', 'parentProfileService.ensureParentProfileExists exists')
 
 console.log(`\nPhase 8B Tests: ${passed}/${total} PASS`)
 if (passed !== total) process.exit(1)

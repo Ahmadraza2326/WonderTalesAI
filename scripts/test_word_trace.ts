@@ -153,6 +153,20 @@ async function runWordTraceTests() {
     '2. Cloze sentence masks target word with blanks (e.g. "The _______ blossom shone...")'
   )
 
+  // Test 2b: Progressive Hints Structure & Leak Verification
+  assert(
+    Boolean(firstChallenge.hints?.phoneticClue) &&
+      Boolean(firstChallenge.hints?.syllableClue) &&
+      Boolean(firstChallenge.hints?.firstLetterClue),
+    '2b. Progressive hints present across Tier 1 (phonetic), Tier 2 (syllable), Tier 3 (letter)'
+  )
+  assert(
+    !firstChallenge.hints.phoneticClue.toLowerCase().includes('luminous') &&
+      !firstChallenge.hints.syllableClue.toLowerCase().includes('luminous') &&
+      firstChallenge.hints.firstLetterClue.includes('"L"'),
+    '2c. Progressive hints strictly redact target word while providing letter clue "L"'
+  )
+
   // Test 3: sparse Story DNA fallback and graceful disabling
   const sparseGame = generateWordTraceGame(mockSparseStory, 'easy')
   assert(

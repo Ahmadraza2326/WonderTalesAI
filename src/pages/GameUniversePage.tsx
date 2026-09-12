@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { childProfileService } from '../services/childProfileService'
 import type { ChildProfile } from '../types/childProfile'

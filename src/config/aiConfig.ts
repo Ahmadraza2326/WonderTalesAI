@@ -48,7 +48,7 @@ function normalizeConfig(): AIConfig {
       timeoutMs: geminiTimeoutMs,
       baseUrl: geminiBaseUrl,
     },
-   defaultProvider: readEnv('VITE_AI_DEFAULT_PROVIDER') ?? 'pollinations',
+   defaultProvider: readEnv('VITE_AI_DEFAULT_PROVIDER') ?? 'cloudflare',
   }
 }
 

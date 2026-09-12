@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { PageContainer } from '../components/ui/PageContainer'
 import { ParentPinModal } from '../components/parent/ParentPinModal'
 import { DiplomaCertificateModal } from '../components/parent/DiplomaCertificateModal'
+import { StickyBackButton } from '../components/layout/StickyBackButton'
 import { useParentPin } from '../hooks/useParentPin'
 import { useChildProfiles } from '../hooks/useChildProfiles'
 import { usePlaytimeCurfew } from '../hooks/usePlaytimeCurfew'
@@ -9,6 +10,7 @@ import {
   calculateAdventureProgress,
   getAllScienceDossiers,
 } from '../services/progressionService'
+import { getSubjectMasterySummaries } from '../services/academy/masteryService'
 import { sfxService } from '../services/audio/sfxService'
 
 export function ParentZonePage() {
@@ -39,6 +41,10 @@ export function ParentZonePage() {
     return getAllScienceDossiers()
   }, [])
 
+  const academySummaries = useMemo(() => {
+    return getSubjectMasterySummaries()
+  }, [])
+
   const filteredDossiers = useMemo(() => {
     if (selectedDossierTab === 'unlocked') {
       return scienceDossiers.filter((d) => d.unlocked)
@@ -62,6 +68,7 @@ export function ParentZonePage() {
   if (!isUnlocked) {
     return (
       <PageContainer>
+        <StickyBackButton fallbackTo="/overworld" label="Overworld Map" />
         <div
           style={{
             minHeight: '70vh',
@@ -130,6 +137,7 @@ export function ParentZonePage() {
 
   return (
     <PageContainer>
+      <StickyBackButton fallbackTo="/overworld" label="Overworld Map" />
       <div className="parent-zone-view" style={{ paddingBottom: '80px' }}>
         {/* Top Hub Navigation Bar */}
         <div
@@ -549,6 +557,81 @@ export function ParentZonePage() {
                 >
                   {st.badge}
                 </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SECTION 2.5: ORBIS ACADEMY LEARNING MASTERY ANALYTICS */}
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            borderRadius: '24px',
+            padding: '28px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px' }}>
+              🏛️ ORBis Academy Curriculum Mastery ({academySummaries.length} Academic Subjects)
+            </h2>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+              Real-time progress across mathematics, science, language arts, coding, and deductive logic.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px',
+            }}
+          >
+            {academySummaries.map((sub) => (
+              <div
+                key={sub.subjectId}
+                style={{
+                  background: 'var(--surface-alt)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '20px' }}>{sub.icon}</span>
+                    <strong style={{ fontSize: '14px' }}>{sub.title}</strong>
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: sub.accentColor }}>
+                    {sub.averageMasteryScore}%
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    height: '6px',
+                    borderRadius: '9999px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, Math.max(8, sub.averageMasteryScore))}%`,
+                      background: sub.accentColor,
+                      borderRadius: '9999px',
+                    }}
+                  />
+                </div>
+
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {sub.masteredSkillsCount}/{sub.totalSkills} Skills Mastered
+                </div>
               </div>
             ))}
           </div>

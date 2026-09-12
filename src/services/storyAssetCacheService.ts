@@ -41,6 +41,26 @@ export async function contentHash(value: string) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+export function containsPersonalData(prompt: string): boolean {
+  if (!prompt) return false
+  const piiPatterns = [
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
+    /\b\d{3}[-.\s]??\d{3}[-.\s]??\d{4}\b/,
+    /\b(?:child named|my son|my daughter|user_id|child_id)\b/i,
+  ]
+  return piiPatterns.some(pattern => pattern.test(prompt))
+}
+
+export async function computeIllustrationPromptHash(
+  prompt: string,
+  width = 512,
+  height = 512,
+  version = 1
+): Promise<string> {
+  const normalized = prompt.trim().toLowerCase().replace(/\s+/g, ' ')
+  return contentHash(`illustration:v${version}:${width}x${height}:${normalized}`)
+}
+
 export async function getNarrationHash(
   story: StoryRecord,
   language?: string,
@@ -153,6 +173,29 @@ export const storyAssetCacheService = {
           .from(STORAGE_BUCKET)
           .upload(illustrationPath, image, { contentType: image.type, upsert: true })
         if (error) throw error
+
+        // If the illustration prompt contains NO personal info, also populate the shared global cache
+        if (page.illustrationPrompt && !containsPersonalData(page.illustrationPrompt)) {
+          try {
+            const promptHash = await computeIllustrationPromptHash(page.illustrationPrompt, 512, 512)
+            const sharedPath = `shared-illustrations/${promptHash}.${extension}`
+            const { error: sharedUploadError } = await supabase.storage
+              .from(STORAGE_BUCKET)
+              .upload(sharedPath, image, { contentType: image.type, upsert: true })
+            if (!sharedUploadError) {
+              await storyAssetCacheService.cacheIllustration(
+                page.illustrationPrompt,
+                sharedPath,
+                512,
+                512,
+                'cloudflare-flux',
+                image.type || 'image/jpeg'
+              )
+            }
+          } catch (cacheErr) {
+            console.warn('[storyAssetCacheService] Error caching shared illustration:', cacheErr)
+          }
+        }
       }
 
       return {
@@ -242,5 +285,59 @@ export const storyAssetCacheService = {
     }, { onConflict: 'story_id,asset_type,content_hash,generation_version' })
 
     if (error) throw error
+  },
+
+  async getCachedIllustration(
+    prompt: string,
+    width = 512,
+    height = 512
+  ): Promise<string | null> {
+    if (!prompt || containsPersonalData(prompt)) return null
+
+    try {
+      const promptHash = await computeIllustrationPromptHash(prompt, width, height)
+      const { data, error } = await supabase
+        .from('story_illustrations')
+        .select('storage_path, mime_type')
+        .eq('prompt_hash', promptHash)
+        .maybeSingle()
+
+      if (error || !data?.storage_path) return null
+
+      return await createSignedUrl(data.storage_path)
+    } catch (err) {
+      console.warn('[storyAssetCacheService] Error looking up cached illustration:', err)
+      return null
+    }
+  },
+
+  async cacheIllustration(
+    prompt: string,
+    storagePath: string,
+    width = 512,
+    height = 512,
+    provider = 'cloudflare-flux',
+    mimeType = 'image/jpeg'
+  ): Promise<void> {
+    if (!prompt || !storagePath || containsPersonalData(prompt)) return
+
+    try {
+      const promptHash = await computeIllustrationPromptHash(prompt, width, height)
+      await supabase.from('story_illustrations').upsert(
+        {
+          prompt_hash: promptHash,
+          canonical_prompt: prompt.trim().toLowerCase().replace(/\s+/g, ' '),
+          storage_path: storagePath,
+          width,
+          height,
+          provider,
+          mime_type: mimeType,
+          cache_version: 1,
+        },
+        { onConflict: 'prompt_hash' }
+      )
+    } catch (err) {
+      console.warn('[storyAssetCacheService] Error storing cached illustration:', err)
+    }
   },
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { authService } from '../services/authService';
 
@@ -18,17 +18,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial fetch
-    authService.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    // Initial fetch with safe catch handler
+    authService
+      .getSession()
+      .then(({ data }) => {
+        setSession(data?.session ?? null);
+        setUser(data?.session?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+      });
 
     // Subscribe to changes
     const { data: { subscription } } = authService.subscribeToAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
     return () => {

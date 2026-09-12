@@ -14,6 +14,11 @@ export interface WordTraceChallenge {
   letterCount: number
   vowelCount: number
   consonantCount: number
+  hints: {
+    phoneticClue: string
+    syllableClue: string
+    firstLetterClue: string
+  }
   scrambledLetters: {
     id: string
     letter: string

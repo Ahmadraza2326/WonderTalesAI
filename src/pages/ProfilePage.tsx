@@ -1,22 +1,41 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../context/I18nContext'
 import { useChildProfiles } from '../hooks/useChildProfiles'
+import { useUserPreferences } from '../hooks/useUserPreferences'
 import { ChildProfileCard } from '../components/profile/ChildProfileCard'
 import { AddChildModal } from '../components/profile/AddChildModal'
 import { ParentLearningInsights } from '../components/learning/ParentLearningInsights'
 import { QuotaStatusCard } from '../components/profile/QuotaStatusCard'
 import { SignOutConfirmationModal } from '../components/profile/SignOutConfirmationModal'
 import { parentProfileService, type ParentProfile } from '../services/parentProfileService'
+import { HapticsService } from '../services/hapticsService'
 import type { ChildProfile } from '../types/childProfile'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
-export function ProfilePage() {
+const LANGUAGE_OPTIONS = [
+  { value: 'English', label: '🇬🇧 English' },
+  { value: 'Urdu', label: '🇵🇰 Urdu (اردو)' },
+  { value: 'Arabic', label: '🇦🇪 Arabic (العربية)' },
+  { value: 'Spanish', label: '🇪🇸 Spanish (Español)' },
+  { value: 'French', label: '🇫🇷 French (Français)' },
+  { value: 'German', label: '🇩🇪 German (Deutsch)' },
+  { value: 'Mandarin', label: '🇨🇳 Mandarin (中文)' },
+  { value: 'Japanese', label: '🇯🇵 Japanese (日本語)' },
+  { value: 'Hindi', label: '🇮🇳 Hindi (हिन्दी)' },
+  { value: 'Portuguese', label: '🇧🇷 Portuguese (Português)' },
+]
+
+export function ProfilePage({ initialTab = 'profiles' }: { initialTab?: 'profiles' | 'settings' }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const queryTab = searchParams.get('tab') === 'settings' ? 'settings' : initialTab
+
   const { user, signOut, isLoading: isAuthLoading } = useAuth()
-  const { t } = useI18n()
+  const { t, setLocale } = useI18n()
+  const { preferences, updatePreferences, resetPreferences } = useUserPreferences()
 
   const [parentProfile, setParentProfile] = useState<ParentProfile | null>(null)
   const [isEditingName, setIsEditingName] = useState<boolean>(false)
@@ -54,6 +73,15 @@ export function ProfilePage() {
       })
     }
   }, [user, isAuthLoading, navigate])
+
+  useEffect(() => {
+    if (queryTab === 'settings') {
+      const el = document.getElementById('app-settings-section')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+      }
+    }
+  }, [queryTab])
 
   const handleSaveParentName = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,11 +141,74 @@ export function ProfilePage() {
   const userEmail = user?.email || 'Authenticated User'
   const memberDate = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '2026'
 
+  const handleThemeChange = (theme: 'system' | 'light' | 'dark') => {
+    updatePreferences({ theme })
+    setFeedbackMessage(`Theme changed to ${theme}`)
+    setTimeout(() => setFeedbackMessage(null), 2500)
+  }
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLang = e.target.value
+    updatePreferences({ defaultLanguage: newLang })
+    setLocale(newLang)
+    setFeedbackMessage(`Default language set to ${newLang}`)
+    setTimeout(() => setFeedbackMessage(null), 2500)
+  }
+
+  const scrollToSection = (sectionId: string) => {
+    HapticsService.light()
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   return (
     <PageContainer
       title={t('family_studio')}
       intro={t('family_studio_intro')}
     >
+      {/* Quick Jump Navigation Pill Bar */}
+      <div
+        className="profile-subtabs-nav"
+        style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '24px',
+          borderBottom: '1.5px solid rgba(255, 255, 255, 0.12)',
+          paddingBottom: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => scrollToSection('young-heroes-section')}
+          className="button button-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <span>👶 {t('young_heroes')}</span>
+          <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '9999px', fontSize: '11px' }}>
+            {profiles.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollToSection('app-settings-section')}
+          className="button button-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <span>⚙️ {t('story_settings')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollToSection('learning-insights-section')}
+          className="button button-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <span>📊 Learning Insights</span>
+        </button>
+      </div>
+
       <div className="profile-studio-layout">
         {feedbackMessage && (
           <div className="form-status success" role="status" style={{ marginBottom: '1.5rem' }}>
@@ -176,9 +267,13 @@ export function ProfilePage() {
           </div>
 
           <div className="parent-header-actions">
-            <Link to="/settings" className="btn btn-secondary btn-sm">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => scrollToSection('app-settings-section')}
+            >
               ⚙️ {t('story_settings')}
-            </Link>
+            </button>
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -189,8 +284,8 @@ export function ProfilePage() {
           </div>
         </section>
 
-        {/* 2. Family Child Profiles Management Section */}
-        <section className="profile-card" aria-labelledby="family-profiles-title">
+        {/* 2. Family Child Profiles Management Section (Young Heroes) */}
+        <section id="young-heroes-section" className="profile-card" aria-labelledby="family-profiles-title">
           <div className="section-title-row">
             <div>
               <h3 id="family-profiles-title" className="section-heading">
@@ -247,15 +342,180 @@ export function ProfilePage() {
           )}
         </section>
 
-        {/* 3. Parent Learning Insights Section */}
-        <ParentLearningInsights />
+        {/* 3. Unified App & Story Settings Section (Theme, Language, Narration Speed, Toggles) */}
+        <div id="app-settings-section" className="settings-studio-layout">
+          {/* Appearance & Theme */}
+          <section className="settings-card" aria-labelledby="appearance-settings-title">
+            <div className="settings-card-header">
+              <span className="settings-card-icon" aria-hidden="true">🎨</span>
+              <div>
+                <h3 id="appearance-settings-title" className="settings-card-title">
+                  {t('visual_appearance_theme')}
+                </h3>
+                <p className="settings-card-subtitle">{t('visual_appearance_desc')}</p>
+              </div>
+            </div>
+            <div className="theme-toggle-group" role="radiogroup" aria-label={t('visual_appearance_theme')}>
+              {[
+                { id: 'light', label: `☀️ ${t('theme_light')}`, desc: t('theme_light_desc') },
+                { id: 'dark', label: `🌙 ${t('theme_dark')}`, desc: t('theme_dark_desc') },
+                { id: 'system', label: `⚙️ ${t('theme_system')}`, desc: t('theme_system_desc') },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={preferences.theme === item.id}
+                  className={`theme-option-card ${preferences.theme === item.id ? 'active' : ''}`}
+                  onClick={() => handleThemeChange(item.id as 'system' | 'light' | 'dark')}
+                >
+                  <span className="theme-option-title">{item.label}</span>
+                  <span className="theme-option-desc">{item.desc}</span>
+                </button>
+              ))}
+            </div>
+          </section>
 
-        {/* 4. Daily Story Generation Quota Section */}
+          {/* Language & Story Defaults */}
+          <section className="settings-card" aria-labelledby="story-defaults-title">
+            <div className="settings-card-header">
+              <span className="settings-card-icon" aria-hidden="true">📖</span>
+              <div>
+                <h3 id="story-defaults-title" className="settings-card-title">
+                  {t('default_story_preferences')}
+                </h3>
+                <p className="settings-card-subtitle">{t('default_story_preferences_desc')}</p>
+              </div>
+            </div>
+            <div className="settings-form-grid">
+              <div className="form-group">
+                <label htmlFor="default-lang-select" className="form-label">
+                  {t('default_story_language')}
+                </label>
+                <select
+                  id="default-lang-select"
+                  className="form-select"
+                  value={preferences.defaultLanguage}
+                  onChange={handleLanguageChange}
+                >
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <option key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* Audio, Narration Speed & Sound Toggles */}
+          <section className="settings-card" aria-labelledby="audio-experience-title">
+            <div className="settings-card-header">
+              <span className="settings-card-icon" aria-hidden="true">🔊</span>
+              <div>
+                <h3 id="audio-experience-title" className="settings-card-title">
+                  {t('narration_speech_pace')}
+                </h3>
+                <p className="settings-card-subtitle">{t('narration_speech_pace_desc')}</p>
+              </div>
+            </div>
+
+            {/* Narration Speed Slider */}
+            <div className="settings-form-grid" style={{ marginBottom: '1.25rem' }}>
+              <div className="form-group">
+                <div className="form-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label htmlFor="narration-speed-range" className="form-label">
+                    {t('narration_speech_pace')}
+                  </label>
+                  <span className="range-value-pill" style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                    {preferences.narrationSpeed.toFixed(1)}x
+                  </span>
+                </div>
+                <input
+                  id="narration-speed-range"
+                  type="range"
+                  min="0.75"
+                  max="1.5"
+                  step="0.05"
+                  value={preferences.narrationSpeed}
+                  onChange={(e) => updatePreferences({ narrationSpeed: parseFloat(e.target.value) })}
+                  className="form-range"
+                  style={{ width: '100%' }}
+                />
+                <div className="range-markers" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
+                  <span>0.75x</span>
+                  <span>1.0x</span>
+                  <span>1.5x</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-toggle-list">
+              <div className="settings-toggle-item">
+                <div>
+                  <span className="toggle-label">{t('autoplay_narration')}</span>
+                  <span className="toggle-sublabel">{t('autoplay_narration_desc')}</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={preferences.autoplayNarration}
+                  onChange={() => updatePreferences({ autoplayNarration: !preferences.autoplayNarration })}
+                />
+              </div>
+              <div className="settings-toggle-item">
+                <div>
+                  <span className="toggle-label">{t('bedtime_mode_title')}</span>
+                  <span className="toggle-sublabel">{t('bedtime_mode_desc')}</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={preferences.bedtimeMode}
+                  onChange={() => updatePreferences({ bedtimeMode: !preferences.bedtimeMode })}
+                />
+              </div>
+              <div className="settings-toggle-item">
+                <div>
+                  <span className="toggle-label">{t('reduced_motion_title')}</span>
+                  <span className="toggle-sublabel">{t('reduced_motion_desc')}</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={preferences.reducedMotion}
+                  onChange={() => updatePreferences({ reducedMotion: !preferences.reducedMotion })}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Reset Preferences */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                if (window.confirm(t('settings_reset_confirm'))) {
+                  resetPreferences()
+                  setFeedbackMessage('Settings reset to defaults')
+                  setTimeout(() => setFeedbackMessage(null), 2500)
+                }
+              }}
+            >
+              🔄 {t('reset_to_defaults')}
+            </button>
+          </div>
+        </div>
+
+        {/* 4. Parent Learning Insights Section */}
+        <div id="learning-insights-section">
+          <ParentLearningInsights />
+        </div>
+
+        {/* 5. Daily Story Generation Quota Section */}
         <section aria-labelledby="quota-section-title">
           <QuotaStatusCard />
         </section>
 
-        {/* 5. Quick Navigation Footer */}
+        {/* 6. Quick Navigation Footer */}
         <div className="profile-footer-links">
           <Link to="/stories/new" className="btn btn-primary">
             ✨ {t('create_new_story')}

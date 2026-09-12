@@ -331,7 +331,24 @@ export const OverworldJourneyMap: React.FC<OverworldJourneyMapProps> = ({ advent
       </div>
 
       {/* Sinuous Adventure Trail Nodes */}
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        {/* Decorative Winding Trail Line (SVG Background Path) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '40px',
+            bottom: '40px',
+            left: '50%',
+            width: '4px',
+            background: 'linear-gradient(180deg, #fbbf24 0%, #a855f7 50%, rgba(255, 255, 255, 0.15) 100%)',
+            transform: 'translateX(-50%)',
+            zIndex: 0,
+            borderRadius: '2px',
+            boxShadow: '0 0 12px rgba(251, 191, 36, 0.5)',
+          }}
+          aria-hidden="true"
+        />
+
         {OVERWORLD_NODES.map((node, index) => {
           const isUnlocked = xp >= node.requiredXp
           const isCurrent = index === currentNodeIndex

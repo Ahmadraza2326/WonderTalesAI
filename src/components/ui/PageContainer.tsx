@@ -1,3 +1,5 @@
+import React from 'react'
+
 type PageContainerProps = {
   children: React.ReactNode
   title?: string

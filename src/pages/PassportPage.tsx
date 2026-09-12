@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { childProfileService } from '../services/childProfileService'
 import type { ChildProfile } from '../types/childProfile'
 import { ChildAdventurePassport } from '../components/profile/ChildAdventurePassport'
+import { StickyBackButton } from '../components/layout/StickyBackButton'
 import {
   calculateAdventureProgress,
   type ChildAdventureProgress,
@@ -92,6 +93,7 @@ export function PassportPage() {
         boxSizing: 'border-box',
       }}
     >
+      <StickyBackButton fallbackTo="/overworld" label="Overworld Map" />
       <ChildAdventurePassport progress={adventureProgress} />
     </div>
   )

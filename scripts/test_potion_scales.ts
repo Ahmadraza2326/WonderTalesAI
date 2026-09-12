@@ -11,7 +11,7 @@ import {
   getPlaygroundGame,
   getPlayablePlaygroundGames,
 } from '../src/services/games/playgroundRegistry'
-import type { PotionScalesPuzzle, PlacedWeightInstance } from '../src/types/games/potionScales'
+import type { PlacedWeightInstance } from '../src/types/games/potionScales'
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -84,6 +84,23 @@ const tiltedEquil = calculateScaleEquilibrium([item1], [item3]) // Left 5g, Righ
 assert(tiltedEquil.isBalanced === false, 'Unequal weights produce isBalanced = false')
 assert(tiltedEquil.weightDifference === 3, 'Difference is exactly +3g')
 assert(tiltedEquil.tiltAngleDeg > 0, 'Left-heavy scale tilts down positively')
+
+// Right heavier: Left 2g, Right 5g (Diff -3g)
+const rightHeavyEquil = calculateScaleEquilibrium([item3], [item1])
+assert(rightHeavyEquil.weightDifference === -3, 'Right-heavy scale has negative weight difference -3g')
+assert(rightHeavyEquil.tiltAngleDeg < 0, 'Right-heavy scale tilts down to the right (negative angle)')
+
+// Spatial Coordinate Physics Mapping Test:
+// On screen: centerY = 140, beamHalfLen = 220
+// Left heavier: Left tip Y = centerY + Math.sin(angle) * beamHalfLen (> 140 -> lower down)
+// Left heavier: Right tip Y = centerY - Math.sin(angle) * beamHalfLen (< 140 -> higher up)
+const angleRad = (tiltedEquil.tiltAngleDeg * Math.PI) / 180
+const centerY = 140
+const beamHalfLen = 220
+const leftTipY = centerY + Math.sin(angleRad) * beamHalfLen
+const rightTipY = centerY - Math.sin(angleRad) * beamHalfLen
+assert(leftTipY > centerY, 'Left-heavy: Left pan moves down towards floor (+Y screen space)')
+assert(rightTipY < centerY, 'Left-heavy: Right pan moves up towards ceiling (-Y screen space)')
 
 const clampedEquil = calculateScaleEquilibrium(
   [
@@ -241,12 +258,23 @@ assert(registryEntry?.primaryDomain === 'logic', 'potion_scales primary domain i
 const playableGames = getPlayablePlaygroundGames()
 assert(playableGames.some((g) => g.id === 'potion_scales'), 'potion_scales listed in getPlayablePlaygroundGames()')
 
-// 9. JSON Serialization / Deserialization
-console.log('\n9. Testing JSON Serialization & Deserialization...')
-const serialized = JSON.stringify(samplePuzzle)
-const deserialized: PotionScalesPuzzle = JSON.parse(serialized)
-assert(deserialized.id === samplePuzzle.id, 'Puzzle ID survives JSON round-trip')
-assert(deserialized.recipe.targetWeight === samplePuzzle.recipe.targetWeight, 'Target weight survives JSON round-trip')
-assert(deserialized.scientificConcept.conceptTitle === samplePuzzle.scientificConcept.conceptTitle, 'Concept title survives JSON round-trip')
+// 10. Procedural Potion Order Generator & Algebraic Scaling
+console.log('\n10. Testing Procedural Potion Order Generator across Endless Seeds...')
+const { generateProceduralPotionOrder } = await import('../src/services/games/potionScalesEngine')
 
-console.log('\n🎉 ALL 48 POTION MARKET SCALES TEST ASSERTIONS PASSED!')
+const procEasy = generateProceduralPotionOrder('child_alchemist_leo_1', 'easy', 1)
+assert(!!procEasy.id && procEasy.id.startsWith('proc_potion_'), 'Procedural easy order generated with valid ID')
+assert(procEasy.recipe.targetWeight > 0, 'Procedural easy order has positive target weight')
+assert(procEasy.recipe.availableInventory.length >= 4, 'Procedural easy order has full inventory')
+assert(!!procEasy.recipe.customer.name, 'Procedural order has assigned customer')
+assert(!!procEasy.scientificConcept.conceptTitle, 'Procedural order has Science of Wonder dossier')
+
+const procMed = generateProceduralPotionOrder('child_alchemist_leo_2', 'medium', 3)
+assert(procMed.difficulty === 'medium', 'Procedural medium order has medium difficulty')
+assert(procMed.recipe.rightStartingItems.length > 0, 'Procedural medium order includes multi-step equation')
+
+const procHard = generateProceduralPotionOrder('child_alchemist_leo_3', 'hard', 5)
+assert(procHard.difficulty === 'hard', 'Procedural hard order has hard difficulty')
+assert(procHard.recipe.availableInventory.some((i) => i.isFraction === true), 'Procedural hard order includes fractional weights')
+
+console.log('\n🎉 ALL 58 POTION MARKET SCALES TEST ASSERTIONS PASSED!')

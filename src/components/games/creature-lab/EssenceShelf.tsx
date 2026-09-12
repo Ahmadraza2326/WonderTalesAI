@@ -2,6 +2,7 @@ import React from 'react'
 import type { Essence } from '../../../types/games/creatureLab'
 import { PRIME_ESSENCES } from '../../../services/games/creatureLabEngine'
 import { sfxService } from '../../../services/audio/sfxService'
+import { HapticsService } from '../../../services/hapticsService'
 
 interface EssenceShelfProps {
   selectedEssenceIds: string[]
@@ -18,6 +19,7 @@ export const EssenceShelf: React.FC<EssenceShelfProps> = ({
 
   const handleDragStart = (e: React.DragEvent, essence: Essence) => {
     if (disabled) return
+    HapticsService.light()
     e.dataTransfer.setData('text/plain', essence.id)
     e.dataTransfer.effectAllowed = 'copy'
     sfxService.play('essence_pickup')
@@ -25,6 +27,7 @@ export const EssenceShelf: React.FC<EssenceShelfProps> = ({
 
   const handleTap = (essence: Essence) => {
     if (disabled) return
+    HapticsService.light()
     sfxService.play('essence_pickup')
     onSelectEssence(essence)
   }

@@ -1,1 +1,394 @@
-/* Design tokens for future app sections */
+/**
+ * ORBis Design System - Unified Master CSS Tokens
+ * Direction: Living Learning Universe (Cosmic Depth + Organic Realm Warmth)
+ * Complies with WCAG 2.1 AA Contrast, 60fps GPU acceleration, and Multi-touch standards.
+ */
+
+:root {
+  /* ==========================================================================
+     1. PRIMITIVE COLOR TOKENS
+     ========================================================================== */
+  
+  /* 🌌 Deep Space Neutrals & Cosmic Atmosphere */
+  --orbis-cosmic-bg-base: #04071b;
+  --orbis-cosmic-nebula-core: #0e1545;
+  --orbis-cosmic-nebula-mid: #080c2e;
+  --orbis-cosmic-nebula-edge: #030514;
+  --orbis-surface-glass-dark: rgba(10, 14, 40, 0.80);
+  --orbis-surface-glass-hud: rgba(10, 14, 40, 0.75);
+  --orbis-void-dark: #020617;
+  --orbis-abyss-950: #070d1e;
+  --orbis-abyss-900: #0f172a;
+  --orbis-cosmic-800: #1e1b4b;
+  --orbis-slate-800: #1e293b;
+  --orbis-slate-700: #334155;
+  --orbis-slate-600: #475569;
+  --orbis-muted-400: #94a3b8;
+  --orbis-star-text-200: #e2e8f0;
+  --orbis-star-text-100: #f8fafc;
+  --orbis-pure-white: #ffffff;
+
+  /* 🏛️ Academic Realm Primitives */
+  --orbis-realm-math-base: #38bdf8;        /* Celestial Sky Cyan */
+  --orbis-realm-math-glow: rgba(56, 189, 248, 0.4);
+  --orbis-realm-math-deep: #0369a1;
+
+  --orbis-realm-science-base: #10b981;     /* Living Emerald */
+  --orbis-realm-science-glow: rgba(16, 185, 129, 0.4);
+  --orbis-realm-science-deep: #047857;
+
+  --orbis-realm-english-base: #a855f7;     /* Arcane Violet */
+  --orbis-realm-english-glow: rgba(168, 85, 247, 0.4);
+  --orbis-realm-english-deep: #7e22ce;
+
+  --orbis-realm-reading-base: #f59e0b;     /* Golden Amber */
+  --orbis-realm-reading-glow: rgba(245, 158, 11, 0.4);
+  --orbis-realm-reading-deep: #b45309;
+
+  --orbis-realm-coding-base: #6366f1;      /* Clockwork Indigo */
+  --orbis-realm-coding-glow: rgba(99, 102, 241, 0.4);
+  --orbis-realm-coding-deep: #4338ca;
+
+  --orbis-realm-logic-base: #ec4899;       /* Enigma Rose */
+  --orbis-realm-logic-glow: rgba(236, 72, 153, 0.4);
+  --orbis-realm-logic-deep: #be185d;
+
+  --orbis-realm-creativity-base: #f97316;  /* Radiance Flame Orange */
+  --orbis-realm-creativity-glow: rgba(249, 115, 22, 0.4);
+  --orbis-realm-creativity-deep: #c2410c;
+
+  --orbis-realm-knowledge-base: #14b8a6;   /* Terran Cyan */
+  --orbis-realm-knowledge-glow: rgba(20, 184, 166, 0.4);
+  --orbis-realm-knowledge-deep: #0f766e;
+
+  /* ✨ Semantic States */
+  --orbis-state-success: #10b981;
+  --orbis-state-success-glow: rgba(16, 185, 129, 0.45);
+  --orbis-state-guidance: #f59e0b;
+  --orbis-state-guidance-glow: rgba(245, 158, 11, 0.45);
+  --orbis-state-danger: #ef4444;
+  --orbis-state-danger-glow: rgba(239, 68, 68, 0.45);
+  --orbis-state-focus: #38bdf8;
+
+  /* ==========================================================================
+     2. TYPOGRAPHY TOKENS
+     ========================================================================== */
+  --font-family-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-family-story: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-family-equation: 'Outfit', 'Courier New', monospace;
+
+  --font-size-display: clamp(2rem, 5vw, 3.25rem);
+  --font-size-hero: clamp(1.6rem, 3.5vw, 2.5rem);
+  --font-size-heading: clamp(1.25rem, 2.5vw, 1.75rem);
+  --font-size-title: 1.25rem;
+  --font-size-body: 1rem;
+  --font-size-label: 0.875rem;
+  --font-size-caption: 0.75rem;
+  --font-size-child-readable: 1.125rem;
+  --font-size-equation: 1.375rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+
+  /* ==========================================================================
+     3. SPACING & LAYOUT TOKENS
+     ========================================================================== */
+  --spacing-micro: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-section: 48px;
+  --spacing-cinematic: 64px;
+
+  /* ==========================================================================
+     4. RADIUS & SHAPE TOKENS
+     ========================================================================== */
+  --radius-soft: 8px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --radius-pill: 9999px;
+  --radius-portal: 32px;
+
+  /* ==========================================================================
+     5. ELEVATION & GLASSMORPHISM TOKENS
+     ========================================================================== */
+  --glass-surface-hero: rgba(15, 23, 42, 0.82);
+  --glass-surface-card: rgba(30, 41, 59, 0.65);
+  --glass-surface-slot: rgba(2, 6, 23, 0.75);
+  --glass-surface-translucent: rgba(255, 255, 255, 0.08);
+
+  --glass-border-subtle: rgba(255, 255, 255, 0.1);
+  --glass-border-light: rgba(255, 255, 255, 0.18);
+  --glass-border-prominent: rgba(255, 255, 255, 0.3);
+
+  --glass-backdrop-blur-sm: blur(8px);
+  --glass-backdrop-blur-md: blur(16px);
+  --glass-backdrop-blur-lg: blur(24px);
+
+  --shadow-elevation-surface: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-elevation-card: 0 10px 25px rgba(0, 0, 0, 0.4);
+  --shadow-elevation-floating: 0 16px 36px rgba(0, 0, 0, 0.5);
+  --shadow-elevation-hero: 0 24px 60px rgba(0, 0, 0, 0.65);
+
+  /* ==========================================================================
+     6. MOTION & CHOREOGRAPHY TOKENS
+     ========================================================================== */
+  --motion-duration-micro: 120ms;
+  --motion-duration-short: 240ms;
+  --motion-duration-medium: 400ms;
+  --motion-duration-long: 650ms;
+  --motion-duration-celebration: 1200ms;
+
+  --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-float: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* ==========================================================================
+     7. CHILD-FIRST TOUCH TARGETS
+     ========================================================================== */
+  --touch-target-min-standard: 48px;
+  --touch-target-min-child: 56px;
+  --touch-target-min-prek: 64px;
+
+  /* ==========================================================================
+     8. CELESTIAL OVERWORLD TOKENS (PHASE 1 CANON)
+     ========================================================================== */
+  --orbis-celestial-gold: #fde047;
+  --orbis-celestial-gold-glow: rgba(253, 224, 71, 0.65);
+  --orbis-celestial-beacon: #fbbf24;
+  --orbis-celestial-beacon-glow: rgba(251, 191, 36, 0.5);
+
+  --orbis-sector-academy-base: #38bdf8;
+  --orbis-sector-academy-teal: #00a28e;
+  --orbis-sector-academy-glow: rgba(56, 189, 248, 0.45);
+
+  --orbis-sector-stories-base: #ffb84d;
+  --orbis-sector-stories-twilight: #8b5cf6;
+  --orbis-sector-stories-glow: rgba(255, 184, 77, 0.45);
+
+  --orbis-sector-playroom-base: #f472b6;
+  --orbis-sector-playroom-violet: #c084fc;
+  --orbis-sector-playroom-glow: rgba(244, 114, 182, 0.45);
+
+  /* 🌌 Organic Living-Nebula Aura Tokens (Canonical Stitch Master) */
+  --orbis-nebula-blur-core: 20px;
+  --orbis-nebula-blur-mid: 28px;
+  --orbis-nebula-blur-wide: 35px;
+  --orbis-nebula-opacity-base: 0.55;
+  --orbis-nebula-opacity-hover: 0.9;
+  --orbis-nebula-scale-hover: 1.08;
+  --orbis-nebula-transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  --orbis-nebula-morph-duration-fast: 10s;
+  --orbis-nebula-morph-duration-mid: 12s;
+  --orbis-nebula-morph-duration-slow: 14s;
+}
+
+/* ==========================================================================
+   9. CELESTIAL OVERWORLD ANIMATION KEYFRAMES (60 FPS GPU)
+   ========================================================================== */
+@keyframes orbis-northstar-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 16px rgba(253, 224, 71, 0.8)) drop-shadow(0 0 32px rgba(253, 224, 71, 0.4));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 24px rgba(253, 224, 71, 0.95)) drop-shadow(0 0 48px rgba(253, 224, 71, 0.65));
+  }
+}
+
+@keyframes orbis-island-float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes orbis-island-float-delayed {
+  0%, 100% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes orbis-stardust-dash {
+  0% {
+    stroke-dashoffset: 200;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes orbis-campfire-flicker {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.12) translateY(-2px);
+    opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(251, 146, 60, 0.9));
+  }
+}
+
+@keyframes orbis-portal-arcane-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbis-crystal-shimmer {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.95));
+  }
+}
+
+/* Utility classes */
+.animate-northstar {
+  animation: orbis-northstar-pulse 3.5s ease-in-out infinite;
+}
+
+.animate-island-float {
+  animation: orbis-island-float-slow 5s ease-in-out infinite;
+}
+
+.animate-island-float-delayed {
+  animation: orbis-island-float-delayed 4.5s ease-in-out infinite;
+}
+
+.animate-campfire {
+  animation: orbis-campfire-flicker 1.8s ease-in-out infinite;
+}
+
+.animate-portal-spin {
+  animation: orbis-portal-arcane-spin 20s linear infinite;
+}
+
+.animate-crystal-shimmer {
+  animation: orbis-crystal-shimmer 2.8s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Canonical Organic Living-Nebula Keyframes (60 FPS GPU, Gaseous Cloud Silhouette)
+   ========================================================================== */
+@keyframes nebula-morph {
+  0% {
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%;
+    transform: rotate(45deg) scale(1.08);
+  }
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    transform: rotate(90deg) scale(1);
+  }
+}
+
+@keyframes orbis-nebula-morph {
+  0% {
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    border-radius: 50% 50% 40% 60% / 50% 40% 60% 50%;
+    transform: rotate(45deg) scale(1.08);
+  }
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    transform: rotate(90deg) scale(1);
+  }
+}
+
+/* Living Nebula Organic Aura Utility Classes */
+.nebula-aura,
+.orbis-nebula-aura {
+  position: absolute;
+  inset: -30%;
+  opacity: 0;
+  transition: var(--orbis-nebula-transition, all 0.6s cubic-bezier(0.16, 1, 0.3, 1));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 0;
+}
+
+.landmark-group:hover .nebula-aura,
+.landmark-group:focus .nebula-aura,
+.landmark-group:hover .orbis-nebula-aura,
+.landmark-group:focus .orbis-nebula-aura,
+.nebula-aura.is-active,
+.orbis-nebula-aura.is-active {
+  opacity: 1;
+}
+
+.nebula-blob,
+.orbis-nebula-blob {
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  background: var(--glow-color, var(--orbis-celestial-beacon-glow));
+  filter: blur(var(--orbis-nebula-blur-mid, 28px));
+  animation: nebula-morph var(--orbis-nebula-morph-duration-fast, 10s) ease-in-out infinite alternate;
+  opacity: 0.6;
+  will-change: transform, border-radius;
+  pointer-events: none;
+}
+
+.nebula-blob:nth-child(2),
+.orbis-nebula-blob:nth-child(2) {
+  width: 140%;
+  height: 90%;
+  animation-duration: var(--orbis-nebula-morph-duration-slow, 14s);
+  animation-direction: alternate-reverse;
+  filter: blur(var(--orbis-nebula-blur-wide, 35px));
+  opacity: 0.4;
+}
+
+.nebula-blob:nth-child(3),
+.orbis-nebula-blob:nth-child(3) {
+  width: 90%;
+  height: 140%;
+  animation-duration: var(--orbis-nebula-morph-duration-mid, 12s);
+  animation-delay: -5s;
+  filter: blur(var(--orbis-nebula-blur-core, 20px));
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   10. REDUCED MOTION OVERRIDES (A11Y ACCESSIBILITY)
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

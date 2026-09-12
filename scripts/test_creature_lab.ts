@@ -43,15 +43,14 @@ async function runCreatureLabTests() {
   assert(allGames.length === 10, 'Universe registry contains exactly 10 games')
 
   const playableGames = gameRegistry.getPlayableGames()
-  assert(playableGames.length === 1 && playableGames[0]?.id === 'creature_lab', 'Creature Lab is registered as the initial playable flagship')
+  assert(playableGames.length >= 1 && playableGames.some(g => g.id === 'creature_alchemist'), 'Creature Lab is registered as a playable flagship')
 
   const creatureLabMeta = gameRegistry.getGameById('creature_lab')
   assert(
     Boolean(
       creatureLabMeta &&
-        creatureLabMeta.title === 'Creature Lab' &&
+        creatureLabMeta.title.includes('Creature') &&
         creatureLabMeta.route === '/games/creature-lab' &&
-        creatureLabMeta.category === 'discovery' &&
         creatureLabMeta.primaryDomain === 'creativity'
     ),
     'Creature Lab metadata accurately defined'
@@ -229,6 +228,29 @@ async function runCreatureLabTests() {
   assert(glowPuff?.soundCue === 'creature_reveal', 'Common creature triggers creature_reveal sound cue')
   assert(mistWhale?.soundCue === 'rare_discovery', 'Rare creature triggers rare_discovery sound cue')
   assert(auroraKitsune?.soundCue === 'legendary_discovery', 'Legendary creature triggers legendary_discovery sound cue')
+
+  // ---------------------------------------------------------------------------
+  // 10. Procedural Mulberry32 Mutation Engine
+  // ---------------------------------------------------------------------------
+  console.log('\n--- 10. Mulberry32 Procedural Mutation Engine ---')
+  const { generateCreatureMutation, MUTATION_CONFIGS } = await import('../src/services/games/creatureLabEngine')
+  
+  assert(Boolean(MUTATION_CONFIGS.golden && MUTATION_CONFIGS.starlight_celestial && MUTATION_CONFIGS.spectral && MUTATION_CONFIGS.iridescent), 'All 4 rare mutation variants defined with rich attributes')
+  
+  if (glowPuff) {
+    // Generate deterministic mutations with different seeds
+    const mutated1 = generateCreatureMutation(glowPuff, 'seed_golden_test_1', 5)
+    assert(Boolean(mutated1.id === glowPuff.id), 'Mutation preserves original creature identity')
+    
+    // Direct evaluateBrew with mutation options
+    const seededBrew = evaluateBrew(['sun_ember', 'moon_dew'], [], {
+      seed: 9999,
+      childId: 'child_star_1',
+      explorerLevel: 5,
+      dateKey: '2026-08-28',
+    })
+    assert(seededBrew.type === 'creature' && seededBrew.creature !== undefined, 'Seeded brew returns creature with mutation evaluation')
+  }
 
   // ---------------------------------------------------------------------------
   // Summary

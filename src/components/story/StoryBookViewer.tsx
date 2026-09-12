@@ -1,4 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { StoryBook, StoryPage } from '../../types/storybook'
 import type { StoryRecord } from '../../types/story'
 import type { StoryNarration } from '../../types/narration'
@@ -11,6 +12,9 @@ import { storyTranslationService } from '../../services/storyTranslationService'
 import { useUserPreferences } from '../../hooks/useUserPreferences'
 import { useAuth } from '../../context/AuthContext'
 import { useI18n } from '../../context/I18nContext'
+import { useChildProfiles } from '../../hooks/useChildProfiles'
+import { getStoryContinuityBridge } from '../../services/academy/storyContinuityEngine'
+import { StoryContinuityBridgeCard } from './StoryContinuityBridgeCard'
 import {
   SUPPORTED_LOCALES,
   resolveLocaleConfig,
@@ -26,6 +30,7 @@ interface StoryBookViewerProps {
   story?: StoryRecord | null
   narration?: StoryNarration | null
   onExploreLearning?: () => void
+  onBackToLibrary?: () => void
 }
 
 type ReadingMode = 'focus' | 'spread'
@@ -37,10 +42,22 @@ export const StoryBookViewer = memo(function StoryBookViewer({
   story,
   narration: narrationProp,
   onExploreLearning,
+  onBackToLibrary,
 }: StoryBookViewerProps) {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { t } = useI18n()
   const { preferences, updatePreferences } = useUserPreferences()
+  const { selectedProfile } = useChildProfiles()
+
+  // Deterministic Story -> Academy -> Playroom Learning Continuity Bridge
+  const continuityBridge = useMemo(() => {
+    if (!story) return null
+    return getStoryContinuityBridge({
+      story,
+      activeChild: selectedProfile || undefined,
+    })
+  }, [story, selectedProfile])
 
   // 1. Translation States (Story Language Independent of UI Locale)
   const [activeTranslation, setActiveTranslation] = useState<TranslatedStoryContent | null>(null)
@@ -1268,10 +1285,23 @@ export const StoryBookViewer = memo(function StoryBookViewer({
             )}
           </article>
 
-          {/* Story Completion Keepsake Vignette (Shown on Final Page) */}
-          {isLastPage ? (
+          {/* Story Completion & Continuity Bridge (Shown on Final Page) */}
+          {isLastPage && continuityBridge ? (
+            <div style={{ marginTop: '1.25rem' }}>
+              <StoryContinuityBridgeCard
+                bridge={continuityBridge}
+                onLaunchLesson={(route) => navigate(route)}
+                onLaunchPractice={(route) => navigate(route)}
+                onLaunchGame={(route) => navigate(route)}
+                onReadAgain={() => {
+                  stopNarration()
+                  setCurrentPage(0)
+                }}
+                onBackToLibrary={onBackToLibrary || (() => navigate('/library'))}
+              />
+            </div>
+          ) : isLastPage ? (
             <div className="card-panel story-completion-card storybook-completion-vignette" role="region" aria-label="Story Completed">
-              <div className="vignette-sparkle" aria-hidden="true">✨ 🌟 ✨</div>
               <div className="completion-content">
                 <h4 className="vignette-title">The End</h4>
                 <p className="vignette-subtitle">You have finished reading &quot;{resolvedTitle}&quot;.</p>
@@ -1284,14 +1314,14 @@ export const StoryBookViewer = memo(function StoryBookViewer({
                       setCurrentPage(0)
                     }}
                   >
-                    🔄 Read Again
+                    Read Again
                   </button>
                   <button
                     type="button"
                     className="button button-secondary btn-sm btn-vignette btn-vignette-secondary"
                     onClick={() => setIsPrintModalOpen(true)}
                   >
-                    🖨️ {t('print_storybook')}
+                    {t('print_storybook')}
                   </button>
                   {onExploreLearning ? (
                     <button
@@ -1299,7 +1329,7 @@ export const StoryBookViewer = memo(function StoryBookViewer({
                       className="button button-secondary btn-sm btn-vignette btn-vignette-accent"
                       onClick={onExploreLearning}
                     >
-                      💡 Explore Quizzes
+                      Explore Quizzes
                     </button>
                   ) : null}
                 </div>

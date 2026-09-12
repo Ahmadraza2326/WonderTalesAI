@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import React, { memo } from 'react'
 import type { CognitiveDomain } from '../../types/experience'
 
 interface CognitiveSkillBadgeProps {

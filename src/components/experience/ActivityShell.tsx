@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react'
+import React, { memo, type ReactNode } from 'react'
 import type { CognitiveDomain } from '../../types/experience'
 import { CognitiveSkillBadge } from './CognitiveSkillBadge'
 import { DifficultyToggle, type ActivityDifficulty } from './DifficultyToggle'
@@ -19,6 +19,7 @@ export interface ActivityShellProps {
   headerRight?: ReactNode
   children: ReactNode
   className?: string
+  variant?: 'standard' | 'hero'
 }
 
 export const ActivityShell = memo(function ActivityShell({
@@ -37,6 +38,7 @@ export const ActivityShell = memo(function ActivityShell({
   headerRight,
   children,
   className = '',
+  variant = 'standard',
 }: ActivityShellProps) {
   // Graceful degradation when Story DNA lacks sufficient data
   if (!isPlayable) {
@@ -76,15 +78,16 @@ export const ActivityShell = memo(function ActivityShell({
 
   return (
     <section
-      className={`activity-shell card-panel ${className}`.trim()}
+      className={`activity-shell activity-shell--${variant} card-panel ${className}`.trim()}
       aria-label={title}
       style={{
         position: 'relative',
-        padding: '1.5rem',
+        padding: variant === 'hero' ? '1.25rem' : '1.5rem',
         borderRadius: '1.5rem',
-        backgroundColor: 'var(--surface-card, #ffffff)',
-        border: '1px solid var(--border, rgba(108, 92, 231, 0.14))',
-        boxShadow: 'var(--shadow-md, 0 10px 30px rgba(108, 92, 231, 0.08))',
+        backgroundColor: variant === 'hero' ? 'rgba(15, 23, 42, 0.85)' : 'var(--surface-card, #ffffff)',
+        border: variant === 'hero' ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid var(--border, rgba(108, 92, 231, 0.14))',
+        boxShadow: variant === 'hero' ? '0 12px 40px rgba(0, 0, 0, 0.35)' : 'var(--shadow-md, 0 10px 30px rgba(108, 92, 231, 0.08))',
+        backdropFilter: variant === 'hero' ? 'blur(12px)' : undefined,
         transition: 'box-shadow 200ms ease',
       }}
     >

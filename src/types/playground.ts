@@ -4,20 +4,25 @@ import type { CognitiveDomain } from './experience'
  * Unique identifiers for all 10 original ORBis Playground games + Creature Lab
  */
 export type PlaygroundGameId =
-  | 'magic_machine'
-  | 'mystery_detective'
   | 'potion_scales'
+  | 'rhythm_spells'
+  | 'word_trace'
+  | 'magic_machine'
+  | 'invention_lab'
   | 'spellforge'
+  | 'ecosystem_sandbox'
+  | 'mystery_detective'
+  | 'robopath'
+  | 'cosmic_constellations'
+  // Legacy aliases supported safely
+  | 'world_builder'
   | 'memory_museum'
+  | 'creature_lab'
   | 'word_detective'
   | 'skyship_builder'
   | 'creature_care'
-  | 'rhythm_spells'
-  | 'world_builder'
   | 'time_machine'
-  | 'invention_lab'
   | 'orbis_quest_run'
-  | 'creature_lab'
 
 export type PlaygroundGameCategory =
   | 'linguistic_craft'

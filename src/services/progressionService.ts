@@ -51,6 +51,28 @@ export function computeExplorerTitle(xp: number): { title: string; badge: string
 }
 
 /**
+ * Computes XP thresholds and percentage toward next level progression.
+ */
+export function getNextLevelThreshold(xp: number): { currentLevelXp: number; nextLevelXp: number; progressPercent: number } {
+  const levels = [
+    { level: 1, min: 0, max: 50 },
+    { level: 2, min: 50, max: 150 },
+    { level: 3, min: 150, max: 300 },
+    { level: 4, min: 300, max: 500 },
+    { level: 5, min: 500, max: 750 },
+    { level: 6, min: 750, max: 1000 },
+  ]
+  const current = levels.find((l) => xp < l.max) || levels[levels.length - 1]
+  const range = current.max - current.min
+  const progressPercent = Math.min(100, Math.max(0, Math.round(((xp - current.min) / range) * 100)))
+  return {
+    currentLevelXp: current.min,
+    nextLevelXp: current.max,
+    progressPercent,
+  }
+}
+
+/**
  * Calculates a unified child adventure progress model combining server-authoritative
  * profile metrics (XP, Stars, Streaks) with station discovery registries.
  */

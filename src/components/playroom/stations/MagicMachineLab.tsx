@@ -10,12 +10,14 @@ import {
   getInitialState,
   evaluateAction,
   stepSimulation,
+  predictTrajectory,
   COMPONENT_METADATA,
   MAGIC_MACHINE_PUZZLES,
 } from '../../../services/games/magicMachineEngine'
 import { ActivityShell } from '../../experience/ActivityShell'
-import { RewardCelebration } from '../../experience/RewardCelebration'
+import { VictoryCelebrationModal } from '../../experience/VictoryCelebrationModal'
 import { sfxService } from '../../../services/audio/sfxService'
+import { HapticsService } from '../../../services/hapticsService'
 import { useActivityEconomy } from '../../../hooks/useActivityEconomy'
 import { useAuth } from '../../../context/AuthContext'
 import { childProfileService } from '../../../services/childProfileService'
@@ -23,6 +25,7 @@ import { childProfileService } from '../../../services/childProfileService'
 interface MagicMachineLabProps {
   initialDifficulty?: DifficultyTier
   puzzleId?: string
+  explorerLevel?: number
   onComplete?: () => void
   onExit?: () => void
 }
@@ -30,6 +33,7 @@ interface MagicMachineLabProps {
 export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
   initialDifficulty = 'easy',
   puzzleId,
+  explorerLevel = 1,
   onComplete,
   onExit,
 }) => {
@@ -57,16 +61,16 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
   const [selectedToolboxType, setSelectedToolboxType] = useState<MachineComponentType | null>(null)
   const [showScienceDossier, setShowScienceDossier] = useState<boolean>(false)
   const [showHint, setShowHint] = useState<boolean>(false)
-  const [ariaAnnouncement, setAriaAnnouncement] = useState<string>('Welcome to Magic Machine Lab!')
+  const [ariaAnnouncement, setAriaAnnouncement] = useState<string>('Welcome to Clockwork Physics Lab!')
 
-  // Level configuration
+  // Level configuration with procedural generator
   const currentConfig: MachineConfig = useMemo(() => {
     if (puzzleId) {
       const found = MAGIC_MACHINE_PUZZLES.find((p) => p.id === puzzleId)
       if (found) return found
     }
-    return generateLevel(puzzleIndex, difficulty)
-  }, [puzzleId, puzzleIndex, difficulty])
+    return generateLevel(puzzleIndex, difficulty, explorerLevel)
+  }, [puzzleId, puzzleIndex, difficulty, explorerLevel])
 
   // Core Engine State
   const [gameState, setGameState] = useState<MachineState>(() => getInitialState(currentConfig))
@@ -93,8 +97,6 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
   }, [currentConfig.id])
 
   const {
-    rewardStatus,
-    isSubmitting: _isEconomySubmitting,
     completeActivity,
     resetActivity: resetEconomy,
   } = useActivityEconomy({
@@ -103,7 +105,7 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
     activityId: activityIdentity.activityId,
   })
 
-  // Sound triggering on collisions
+  // Sound & Haptic triggering on collisions
   const prevCollisionsRef = useRef<string[]>([])
   useEffect(() => {
     const newCollisions = gameState.activeCollisions.filter(
@@ -118,14 +120,19 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
 
       if (comp) {
         if (comp.type.startsWith('spring')) {
+          HapticsService.heavy()
           sfxService.play('spring_bounce')
         } else if (comp.type === 'magnet_attract') {
+          HapticsService.medium()
           sfxService.play('magnet_pull')
         } else if (comp.type.startsWith('fan')) {
+          HapticsService.light()
           sfxService.play('fan_whoosh')
         } else if (comp.type === 'bumper_circle') {
+          HapticsService.heavy()
           sfxService.play('star_pop')
         } else {
+          HapticsService.light()
           sfxService.play('component_place')
         }
       }
@@ -136,22 +143,24 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
   // Handle Simulation Outcome
   useEffect(() => {
     if (gameState.simulationStatus === 'success') {
+      HapticsService.success()
       sfxService.play('machine_success')
       setAriaAnnouncement('Hooray! The Sproutling safely reached the Star Cradle!')
       setShowScienceDossier(true)
 
       // Award authoritative rewards
       completeActivity({
-        xpAmount: gameState.telemetry.xp,
-        starsAmount: gameState.telemetry.stars,
+        xpAmount: gameState.telemetry.xp || 35,
+        starsAmount: gameState.telemetry.stars || 8,
       })
 
       if (onComplete) onComplete()
     } else if (gameState.simulationStatus === 'failed') {
+      HapticsService.warning()
       sfxService.play('machine_fail')
       setAriaAnnouncement('Wobbly landing! Tap Reset to adjust your machine components and try again.')
     }
-  }, [gameState.simulationStatus, gameState.telemetry, gameState.placedComponents.length, completeActivity, onComplete])
+  }, [gameState.simulationStatus, gameState.telemetry, completeActivity, onComplete])
 
   // Physics Animation Loop
   useEffect(() => {
@@ -185,7 +194,15 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
     }
   }, [gameState.simulationStatus])
 
-  // Canvas Drawing Pass
+  // Trajectory Prediction Points
+  const predictedTrajectoryPoints = useMemo(() => {
+    if (gameState.simulationStatus === 'design' || gameState.simulationStatus === 'paused') {
+      return predictTrajectory(gameState, 45, 0.035)
+    }
+    return []
+  }, [gameState])
+
+  // 3D Depth Blueprint Canvas Rendering
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -195,15 +212,19 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
     const W = 800
     const H = 500
 
-    // Clear background
     ctx.clearRect(0, 0, W, H)
 
-    // 1. Draw Blueprint Background Grid
-    ctx.fillStyle = '#0f172a'
+    // 1. 3D Blueprint Workshop Background & Radial Glow
+    const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 80, W / 2, H / 2, 500)
+    bgGrad.addColorStop(0, '#1e293b')
+    bgGrad.addColorStop(0.6, '#0f172a')
+    bgGrad.addColorStop(1, '#020617')
+    ctx.fillStyle = bgGrad
     ctx.fillRect(0, 0, W, H)
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)'
-    ctx.lineWidth = 1
+    // 3D Isometric / Blueprint Grid Lines
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.09)'
+    ctx.lineWidth = 1.2
     for (let x = 0; x < W; x += 40) {
       ctx.beginPath()
       ctx.moveTo(x, 0)
@@ -217,44 +238,131 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
       ctx.stroke()
     }
 
-    // 2. Draw Start Platform & Sproutling Spawn Point
+    // 2. Metallic Rotating Clockwork Gears in Canvas Corners
+    const timeSec = Date.now() / 1000
+    const drawGear = (gx: number, gy: number, radius: number, teeth: number, angle: number, color: string) => {
+      ctx.save()
+      ctx.translate(gx, gy)
+      ctx.rotate(angle)
+      ctx.fillStyle = color
+      ctx.strokeStyle = '#f59e0b'
+      ctx.lineWidth = 2
+
+      ctx.beginPath()
+      for (let i = 0; i < teeth; i++) {
+        const a1 = (i * Math.PI * 2) / teeth
+        const a2 = a1 + Math.PI / teeth / 2
+        const a3 = a1 + Math.PI / teeth
+        const rOut = radius + 6
+        const rIn = radius
+
+        const x1 = Math.cos(a1) * rIn
+        const y1 = Math.sin(a1) * rIn
+        const x2 = Math.cos(a2) * rOut
+        const y2 = Math.sin(a2) * rOut
+        const x3 = Math.cos(a3) * rIn
+        const y3 = Math.sin(a3) * rIn
+
+        if (i === 0) ctx.moveTo(x1, y1)
+        else ctx.lineTo(x1, y1)
+        ctx.lineTo(x2, y2)
+        ctx.lineTo(x3, y3)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      // Center cutout & brass axle rivet
+      ctx.fillStyle = '#0f172a'
+      ctx.beginPath()
+      ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#d97706'
+      ctx.stroke()
+
+      ctx.fillStyle = '#fbbf24'
+      ctx.beginPath()
+      ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    // Draw aesthetic gears
+    ctx.globalAlpha = 0.25
+    drawGear(50, 50, 36, 10, timeSec * 0.4, '#334155')
+    drawGear(95, 45, 24, 8, -timeSec * 0.6, '#475569')
+    drawGear(W - 60, H - 60, 44, 12, timeSec * 0.35, '#334155')
+    drawGear(W - 110, H - 40, 28, 8, -timeSec * 0.55, '#475569')
+    ctx.globalAlpha = 1.0
+
+    // 3. Projected Real-Time Trajectory Dot-Arc
+    if (predictedTrajectoryPoints.length > 1) {
+      ctx.save()
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)'
+      ctx.lineWidth = 2.5
+      ctx.setLineDash([6, 8])
+      ctx.beginPath()
+      for (let i = 0; i < predictedTrajectoryPoints.length; i++) {
+        const pt = predictedTrajectoryPoints[i]
+        if (i === 0) ctx.moveTo(pt.x, pt.y)
+        else ctx.lineTo(pt.x, pt.y)
+      }
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      // Trajectory glow particles
+      for (let i = 4; i < predictedTrajectoryPoints.length; i += 6) {
+        const pt = predictedTrajectoryPoints[i]
+        ctx.fillStyle = '#38bdf8'
+        ctx.shadowColor = '#38bdf8'
+        ctx.shadowBlur = 8
+        ctx.beginPath()
+        ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.restore()
+    }
+
+    // 4. Start Platform & Sproutling Spawn Point
     const startX = currentConfig.startPos.x
     const startY = currentConfig.startPos.y
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.2)'
+    ctx.save()
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.22)'
     ctx.beginPath()
-    ctx.arc(startX, startY, 24, 0, Math.PI * 2)
+    ctx.arc(startX, startY, 26, 0, Math.PI * 2)
     ctx.fill()
     ctx.strokeStyle = '#60a5fa'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2.5
     ctx.stroke()
 
     ctx.fillStyle = '#93c5fd'
     ctx.font = 'bold 11px system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('START', startX, startY - 28)
+    ctx.fillText('START', startX, startY - 30)
+    ctx.restore()
 
-    // 3. Draw Goal Beacon (Star Cradle)
+    // 5. Goal Beacon (Star Cradle)
     const goal = currentConfig.goal
     ctx.save()
     ctx.shadowColor = '#fbbf24'
-    ctx.shadowBlur = 18
-    ctx.fillStyle = 'rgba(251, 191, 36, 0.25)'
+    ctx.shadowBlur = 24
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.28)'
     ctx.beginPath()
-    ctx.arc(goal.x, goal.y, goal.radius + 8, 0, Math.PI * 2)
+    ctx.arc(goal.x, goal.y, goal.radius + 10, 0, Math.PI * 2)
     ctx.fill()
 
     // Rotating celestial ring
-    const ringAngle = (Date.now() / 1000) % (Math.PI * 2)
+    const ringAngle = timeSec % (Math.PI * 2)
     ctx.strokeStyle = '#f59e0b'
-    ctx.lineWidth = 3
-    ctx.setLineDash([8, 6])
+    ctx.lineWidth = 3.5
+    ctx.setLineDash([10, 6])
     ctx.beginPath()
-    ctx.arc(goal.x, goal.y, goal.radius, ringAngle, ringAngle + Math.PI * 2)
+    ctx.arc(goal.x, goal.y, goal.radius + 2, ringAngle, ringAngle + Math.PI * 2)
     ctx.stroke()
     ctx.setLineDash([])
 
     ctx.fillStyle = '#fef08a'
-    ctx.font = '22px sans-serif'
+    ctx.font = '24px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('⭐', goal.x, goal.y)
@@ -263,34 +371,44 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
     ctx.fillStyle = '#fef08a'
     ctx.font = 'bold 12px system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(goal.label || 'GOAL', goal.x, goal.y + goal.radius + 18)
+    ctx.fillText(goal.label || 'GOAL', goal.x, goal.y + goal.radius + 20)
 
-    // 4. Draw Components
+    // 6. Draw 3D-Depth Components
     const allComponents = [...currentConfig.fixedComponents, ...gameState.placedComponents]
 
     for (const comp of allComponents) {
       const isSelected = gameState.selectedComponentId === comp.id
       ctx.save()
 
+      // Ambient Drop Shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.55)'
+      ctx.shadowBlur = 14
+      ctx.shadowOffsetY = 6
+
       if (isSelected) {
         ctx.shadowColor = '#38bdf8'
-        ctx.shadowBlur = 12
+        ctx.shadowBlur = 16
         ctx.strokeStyle = '#38bdf8'
-        ctx.lineWidth = 2
+        ctx.lineWidth = 2.5
         ctx.strokeRect(comp.x - 4, comp.y - 4, comp.width + 8, comp.height + 8)
       }
 
       switch (comp.type) {
         case 'platform_wood': {
-          ctx.fillStyle = comp.isFixed ? '#334155' : '#78350f'
+          // 3D Wooden/Brass Platform
+          const platGrad = ctx.createLinearGradient(comp.x, comp.y, comp.x, comp.y + comp.height)
+          platGrad.addColorStop(0, comp.isFixed ? '#475569' : '#92400e')
+          platGrad.addColorStop(1, comp.isFixed ? '#1e293b' : '#451a03')
+          ctx.fillStyle = platGrad
           ctx.beginPath()
           ctx.roundRect(comp.x, comp.y, comp.width, comp.height, 6)
           ctx.fill()
-          ctx.strokeStyle = comp.isFixed ? '#64748b' : '#b45309'
-          ctx.lineWidth = 2
+          ctx.strokeStyle = comp.isFixed ? '#94a3b8' : '#d97706'
+          ctx.lineWidth = 2.5
           ctx.stroke()
-          // Rivets / grain
-          ctx.fillStyle = '#d97706'
+
+          // Metallic Rivets
+          ctx.fillStyle = '#fbbf24'
           ctx.beginPath()
           ctx.arc(comp.x + 8, comp.y + comp.height / 2, 2.5, 0, Math.PI * 2)
           ctx.arc(comp.x + comp.width - 8, comp.y + comp.height / 2, 2.5, 0, Math.PI * 2)
@@ -299,42 +417,51 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
         }
 
         case 'ramp_right': {
-          ctx.fillStyle = '#b45309'
+          const rampGrad = ctx.createLinearGradient(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height)
+          rampGrad.addColorStop(0, '#f59e0b')
+          rampGrad.addColorStop(1, '#78350f')
+          ctx.fillStyle = rampGrad
           ctx.beginPath()
           ctx.moveTo(comp.x, comp.y)
           ctx.lineTo(comp.x + comp.width, comp.y + comp.height)
           ctx.lineTo(comp.x, comp.y + comp.height)
           ctx.closePath()
           ctx.fill()
-          ctx.strokeStyle = '#f59e0b'
+          ctx.strokeStyle = '#fbbf24'
           ctx.lineWidth = 3
           ctx.stroke()
           break
         }
 
         case 'ramp_left': {
-          ctx.fillStyle = '#b45309'
+          const rampGrad = ctx.createLinearGradient(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height)
+          rampGrad.addColorStop(0, '#f59e0b')
+          rampGrad.addColorStop(1, '#78350f')
+          ctx.fillStyle = rampGrad
           ctx.beginPath()
           ctx.moveTo(comp.x + comp.width, comp.y)
           ctx.lineTo(comp.x, comp.y + comp.height)
           ctx.lineTo(comp.x + comp.width, comp.y + comp.height)
           ctx.closePath()
           ctx.fill()
-          ctx.strokeStyle = '#f59e0b'
+          ctx.strokeStyle = '#fbbf24'
           ctx.lineWidth = 3
           ctx.stroke()
           break
         }
 
         case 'ramp_steep': {
-          ctx.fillStyle = '#9a3412'
+          const rampGrad = ctx.createLinearGradient(comp.x, comp.y, comp.x + comp.width, comp.y + comp.height)
+          rampGrad.addColorStop(0, '#ea580c')
+          rampGrad.addColorStop(1, '#7c2d12')
+          ctx.fillStyle = rampGrad
           ctx.beginPath()
           ctx.moveTo(comp.x, comp.y)
           ctx.lineTo(comp.x + comp.width, comp.y + comp.height)
           ctx.lineTo(comp.x, comp.y + comp.height)
           ctx.closePath()
           ctx.fill()
-          ctx.strokeStyle = '#ea580c'
+          ctx.strokeStyle = '#f97316'
           ctx.lineWidth = 4
           ctx.stroke()
           break
@@ -342,21 +469,27 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
 
         case 'spring_up':
         case 'spring_angled': {
-          // Base
-          ctx.fillStyle = '#475569'
+          // 3D Bouncy Spring with displacement
+          const isTriggered = gameState.activeCollisions.includes(comp.id)
+          const squishY = isTriggered ? 8 : 0
+
+          // Base plate
+          ctx.fillStyle = '#334155'
           ctx.fillRect(comp.x, comp.y + comp.height - 8, comp.width, 8)
-          // Coiled spring
+
+          // Metallic Coils
           ctx.strokeStyle = '#fbbf24'
           ctx.lineWidth = 4
           ctx.beginPath()
           ctx.moveTo(comp.x + 10, comp.y + comp.height - 8)
-          ctx.lineTo(comp.x + comp.width / 2, comp.y + 8)
+          ctx.lineTo(comp.x + comp.width / 2, comp.y + 10 + squishY)
           ctx.lineTo(comp.x + comp.width - 10, comp.y + comp.height - 8)
           ctx.stroke()
-          // Top pad
-          ctx.fillStyle = '#ea580c'
+
+          // Launch Pad
+          ctx.fillStyle = isTriggered ? '#fbbf24' : '#ea580c'
           ctx.beginPath()
-          ctx.roundRect(comp.x + 4, comp.y, comp.width - 8, 8, 4)
+          ctx.roundRect(comp.x + 4, comp.y + squishY, comp.width - 8, 8, 4)
           ctx.fill()
           break
         }
@@ -364,35 +497,60 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
         case 'magnet_attract': {
           const cx = comp.x + comp.width / 2
           const cy = comp.y + comp.height / 2
-          // Pulse aura
-          const pulse = (Math.sin(Date.now() / 250) + 1) * 0.5
-          ctx.fillStyle = `rgba(236, 72, 153, ${0.1 + pulse * 0.15})`
+
+          // Radiating Magnetic Force Field Rings
+          const pulse = (Math.sin(timeSec * 4) + 1) * 0.5
+          ctx.strokeStyle = `rgba(236, 72, 153, ${0.3 + pulse * 0.4})`
+          ctx.lineWidth = 2
+          ctx.setLineDash([4, 4])
           ctx.beginPath()
-          ctx.arc(cx, cy, 50, 0, Math.PI * 2)
-          ctx.fill()
-          // Horseshoe
-          ctx.font = '36px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText('🧲', cx, cy)
+          ctx.arc(cx, cy, 45 + pulse * 10, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.setLineDash([])
+
+          // Horseshoe Vector Core
+          ctx.strokeStyle = '#ef4444'
+          ctx.lineWidth = 10
+          ctx.beginPath()
+          ctx.arc(cx, cy - 2, 14, Math.PI, 0, false)
+          ctx.stroke()
+
+          // Silver Magnetic Tips
+          ctx.fillStyle = '#e2e8f0'
+          ctx.fillRect(cx - 19, cy - 2, 10, 10)
+          ctx.fillRect(cx + 9, cy - 2, 10, 10)
           break
         }
 
         case 'fan_right': {
-          // Housing
+          // 3D Aerodynamic Fan Housing
           ctx.fillStyle = '#0284c7'
           ctx.beginPath()
           ctx.roundRect(comp.x, comp.y, comp.width, comp.height, 6)
           ctx.fill()
-          // Blades
-          ctx.font = '28px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText('💨', comp.x + comp.width / 2, comp.y + comp.height / 2)
-          // Wind stream
+
+          // Vector Turbine Blades
+          const fcx = comp.x + comp.width / 2
+          const fcy = comp.y + comp.height / 2
+          const fanAngle = timeSec * 8
+          ctx.save()
+          ctx.translate(fcx, fcy)
+          ctx.rotate(fanAngle)
+          ctx.fillStyle = '#38bdf8'
+          for (let b = 0; b < 3; b++) {
+            ctx.rotate((Math.PI * 2) / 3)
+            ctx.fillRect(-3, -12, 6, 12)
+          }
+          ctx.restore()
+
+          // Animated Wind Stream Particles
           if (gameState.simulationStatus === 'running') {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.25)'
-            ctx.fillRect(comp.x + comp.width, comp.y + 10, 180, comp.height - 20)
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.35)'
+            for (let i = 0; i < 6; i++) {
+              const wx = comp.x + comp.width + ((timeSec * 160 + i * 35) % 180)
+              const wy = comp.y + 12 + (i % 3) * 14
+              ctx.fillRect(wx, wy, 16, 2.5)
+            }
           }
           break
         }
@@ -402,13 +560,27 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
           ctx.beginPath()
           ctx.roundRect(comp.x, comp.y, comp.width, comp.height, 6)
           ctx.fill()
-          ctx.font = '28px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText('💨', comp.x + comp.width / 2, comp.y + comp.height / 2)
+
+          const fcx = comp.x + comp.width / 2
+          const fcy = comp.y + comp.height / 2
+          const fanAngle = timeSec * 8
+          ctx.save()
+          ctx.translate(fcx, fcy)
+          ctx.rotate(fanAngle)
+          ctx.fillStyle = '#38bdf8'
+          for (let b = 0; b < 3; b++) {
+            ctx.rotate((Math.PI * 2) / 3)
+            ctx.fillRect(-3, -12, 6, 12)
+          }
+          ctx.restore()
+
           if (gameState.simulationStatus === 'running') {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.25)'
-            ctx.fillRect(comp.x + 10, comp.y - 200, comp.width - 20, 200)
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.35)'
+            for (let i = 0; i < 6; i++) {
+              const wy = comp.y - ((timeSec * 160 + i * 35) % 180)
+              const wx = comp.x + 12 + (i % 3) * 16
+              ctx.fillRect(wx, wy, 2.5, 16)
+            }
           }
           break
         }
@@ -417,18 +589,33 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
           const bcx = comp.x + comp.width / 2
           const bcy = comp.y + comp.height / 2
           const br = comp.width / 2
-          ctx.fillStyle = '#db2777'
+
+          const isHit = gameState.activeCollisions.includes(comp.id)
+
+          ctx.fillStyle = isHit ? '#f472b6' : '#db2777'
           ctx.beginPath()
           ctx.arc(bcx, bcy, br, 0, Math.PI * 2)
           ctx.fill()
           ctx.strokeStyle = '#f472b6'
-          ctx.lineWidth = 3
+          ctx.lineWidth = 3.5
           ctx.stroke()
-          ctx.fillStyle = '#ffffff'
-          ctx.font = '16px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText('⭐', bcx, bcy)
+
+          // Bespoke 5-Point Star Vector Center
+          ctx.fillStyle = '#fde047'
+          ctx.beginPath()
+          const spikes = 5
+          const outerR = 9
+          const innerR = 4.5
+          for (let s = 0; s < spikes * 2; s++) {
+            const r = s % 2 === 0 ? outerR : innerR
+            const angle = (s * Math.PI) / spikes - Math.PI / 2
+            const sx = bcx + Math.cos(angle) * r
+            const sy = bcy + Math.sin(angle) * r
+            if (s === 0) ctx.moveTo(sx, sy)
+            else ctx.lineTo(sx, sy)
+          }
+          ctx.closePath()
+          ctx.fill()
           break
         }
 
@@ -438,32 +625,30 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
       ctx.restore()
     }
 
-    // 5. Draw Actor Trail
+    // 7. Draw Velocity-Based Actor Trail
     const actor = gameState.actor
     for (let i = 0; i < actor.trail.length; i++) {
       const t = actor.trail[i]
-      ctx.fillStyle = `rgba(74, 222, 128, ${t.opacity * 0.4})`
+      ctx.fillStyle = `rgba(74, 222, 128, ${t.opacity * 0.45})`
       ctx.beginPath()
       ctx.arc(t.x, t.y, actor.radius * (1 - i * 0.08), 0, Math.PI * 2)
       ctx.fill()
     }
 
-    // 6. Draw Actor (The Sproutling Orbling)
+    // 8. Draw Actor Sproutling with 3D Depth Squash-and-Stretch
     ctx.save()
     ctx.translate(actor.x, actor.y)
-
-    // Bouncing squash-and-stretch
     ctx.scale(actor.squish.x, actor.squish.y)
 
-    // Body shadow / glow
+    // Body Shadow & Radiant Starlight Core
     ctx.shadowColor = '#22c55e'
-    ctx.shadowBlur = 10
+    ctx.shadowBlur = 14
     ctx.fillStyle = '#22c55e'
     ctx.beginPath()
     ctx.arc(0, 0, actor.radius, 0, Math.PI * 2)
     ctx.fill()
 
-    // Cute face
+    // Expressive Eyes
     ctx.fillStyle = '#ffffff'
     ctx.beginPath()
     ctx.arc(-5, -3, 3.5, 0, Math.PI * 2)
@@ -476,71 +661,26 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
     ctx.arc(5.5, -3, 1.8, 0, Math.PI * 2)
     ctx.fill()
 
-    // Little leaf antenna
+    // Cute Leaf Antenna
     ctx.fillStyle = '#86efac'
     ctx.beginPath()
     ctx.ellipse(0, -actor.radius - 4, 3, 6, Math.PI / 4, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.restore()
-  }, [gameState, currentConfig])
+  }, [gameState, currentConfig, predictedTrajectoryPoints])
 
-  // Canvas Click / Tap to Place or Select Component
-  const handleCanvasClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const scaleX = 800 / rect.width
-      const scaleY = 500 / rect.height
-      const clickX = (e.clientX - rect.left) * scaleX
-      const clickY = (e.clientY - rect.top) * scaleY
-
-      // Check if clicking existing component to select
-      const hit = [...gameState.placedComponents].reverse().find((c) => {
-        return (
-          clickX >= c.x &&
-          clickX <= c.x + c.width &&
-          clickY >= c.y &&
-          clickY <= c.y + c.height
-        )
-      })
-
-      if (hit) {
-        sfxService.play('component_pickup')
-        setGameState((prev) => evaluateAction(prev, { type: 'SELECT_COMPONENT', id: hit.id }))
-        return
-      }
-
-      // If toolbox item is selected, place it
-      if (selectedToolboxType) {
-        sfxService.play('component_place')
-        setGameState((prev) =>
-          evaluateAction(prev, {
-            type: 'ADD_COMPONENT',
-            componentType: selectedToolboxType,
-            x: clickX - 40,
-            y: clickY - 20,
-          })
-        )
-        setAriaAnnouncement(`Placed ${COMPONENT_METADATA[selectedToolboxType].name} at coordinates.`)
-      } else {
-        // Deselect
-        setGameState((prev) => evaluateAction(prev, { type: 'SELECT_COMPONENT', id: null }))
-      }
-    },
-    [selectedToolboxType, gameState.placedComponents]
-  )
-
-  // Drag-and-Drop / Move Component Logic
+  // Drag and Snap Controls with PointerCapture
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (gameState.simulationStatus !== 'design') return
       const canvas = canvasRef.current
       if (!canvas) return
+      canvas.setPointerCapture(e.pointerId)
+
       const rect = canvas.getBoundingClientRect()
       const clickX = (e.clientX - rect.left) * (800 / rect.width)
       const clickY = (e.clientY - rect.top) * (500 / rect.height)
@@ -558,14 +698,37 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
         setIsDragging(true)
         dragOffsetRef.current = { x: clickX - hit.x, y: clickY - hit.y }
         setGameState((prev) => evaluateAction(prev, { type: 'SELECT_COMPONENT', id: hit.id }))
+        HapticsService.light()
         sfxService.play('component_pickup')
+        return
+      }
+
+      // If toolbox part is selected, snap-place it
+      if (selectedToolboxType) {
+        const meta = COMPONENT_METADATA[selectedToolboxType]
+        const snapX = Math.round((clickX - meta.defaultWidth / 2) / 10) * 10
+        const snapY = Math.round((clickY - meta.defaultHeight / 2) / 10) * 10
+
+        HapticsService.medium()
+        sfxService.play('component_place')
+        setGameState((prev) =>
+          evaluateAction(prev, {
+            type: 'ADD_COMPONENT',
+            componentType: selectedToolboxType,
+            x: snapX,
+            y: snapY,
+          })
+        )
+        setAriaAnnouncement(`Placed ${meta.name} on workbench.`)
+      } else {
+        setGameState((prev) => evaluateAction(prev, { type: 'SELECT_COMPONENT', id: null }))
       }
     },
-    [gameState.simulationStatus, gameState.placedComponents]
+    [gameState.simulationStatus, gameState.placedComponents, selectedToolboxType]
   )
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!isDragging || !gameState.selectedComponentId) return
       const canvas = canvasRef.current
       if (!canvas) return
@@ -573,93 +736,81 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
       const curX = (e.clientX - rect.left) * (800 / rect.width)
       const curY = (e.clientY - rect.top) * (500 / rect.height)
 
+      const rawX = curX - dragOffsetRef.current.x
+      const rawY = curY - dragOffsetRef.current.y
+      const snapX = Math.round(rawX / 10) * 10
+      const snapY = Math.round(rawY / 10) * 10
+
       setGameState((prev) =>
         evaluateAction(prev, {
           type: 'MOVE_COMPONENT',
           id: prev.selectedComponentId!,
-          x: curX - dragOffsetRef.current.x,
-          y: curY - dragOffsetRef.current.y,
+          x: snapX,
+          y: snapY,
         })
       )
     },
     [isDragging, gameState.selectedComponentId]
   )
 
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false)
-      sfxService.play('component_place')
-    }
-  }, [isDragging])
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (isDragging) {
+        setIsDragging(false)
+        HapticsService.light()
+        sfxService.play('component_place')
+      }
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Safe pointer release
+      }
+    },
+    [isDragging]
+  )
 
-  // Controls Handlers
+  // Simulation Controls
   const handleStart = useCallback(() => {
+    HapticsService.selection()
     sfxService.play('machine_start')
     setGameState((prev) => evaluateAction(prev, { type: 'START_SIMULATION' }))
-    setAriaAnnouncement('Simulation started! Watching machine contraption in action.')
+    setAriaAnnouncement('Simulation started! Watching contraption physics.')
   }, [])
 
   const handlePause = useCallback(() => {
+    HapticsService.light()
     setGameState((prev) => evaluateAction(prev, { type: 'PAUSE_SIMULATION' }))
     setAriaAnnouncement('Simulation paused.')
   }, [])
 
   const handleReset = useCallback(() => {
+    HapticsService.light()
     sfxService.play('card_flip')
     setGameState((prev) => evaluateAction(prev, { type: 'RESET_SIMULATION' }))
     resetEconomy()
     setShowScienceDossier(false)
-    setAriaAnnouncement('Machine reset to start platform. Ready for adjustments.')
+    setAriaAnnouncement('Machine reset to start platform.')
   }, [resetEconomy])
 
   const handleDeleteSelected = useCallback(() => {
     if (!gameState.selectedComponentId) return
+    HapticsService.medium()
     sfxService.play('mistake_soft')
     setGameState((prev) => evaluateAction(prev, { type: 'REMOVE_COMPONENT', id: prev.selectedComponentId! }))
     setAriaAnnouncement('Component removed from workbench.')
   }, [gameState.selectedComponentId])
 
-  // Keyboard Navigation Controls
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault()
-        if (gameState.simulationStatus === 'running') handlePause()
-        else handleStart()
-      } else if (e.key === 'r' || e.key === 'R') {
-        handleReset()
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        handleDeleteSelected()
-      } else if (gameState.selectedComponentId && (e.key.startsWith('Arrow') || e.code.startsWith('Arrow'))) {
-        e.preventDefault()
-        const selected = gameState.placedComponents.find((c) => c.id === gameState.selectedComponentId)
-        if (selected) {
-          let dx = 0
-          let dy = 0
-          if (e.key === 'ArrowUp') dy = -10
-          if (e.key === 'ArrowDown') dy = 10
-          if (e.key === 'ArrowLeft') dx = -10
-          if (e.key === 'ArrowRight') dx = 10
-
-          setGameState((prev) =>
-            evaluateAction(prev, {
-              type: 'MOVE_COMPONENT',
-              id: selected.id,
-              x: selected.x + dx,
-              y: selected.y + dy,
-            })
-          )
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [gameState.simulationStatus, gameState.selectedComponentId, gameState.placedComponents, handleStart, handlePause, handleReset, handleDeleteSelected])
-
   return (
-    <div className="magic-machine-container">
-      {/* Invisible Screen Reader Polite Announcer */}
+    <div
+      className="magic-machine-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        maxHeight: '100%',
+        overflow: 'hidden',
+      }}
+    >
       <div className="sr-only" aria-live="polite">
         {ariaAnnouncement}
       </div>
@@ -670,16 +821,16 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
         primaryDomain="logic"
         secondaryDomains={['creativity']}
         difficulty={difficulty}
+        variant="hero"
         onDifficultyChange={(d) => {
           setDifficulty(d)
           setPuzzleIndex(0)
         }}
-        progressInfo={`Puzzle ${puzzleIndex + 1} / 4`}
+        progressInfo={`Sector #${puzzleIndex + 1}`}
         tagline={currentConfig.subtitle}
       >
-        {/* Main Workshop Layout */}
-        <div className="workshop-layout">
-          {/* Level Header Bar */}
+        <div className="workshop-layout" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {/* Header Bar */}
           <div className="workshop-header-bar">
             <div className="puzzle-title-badge">
               <h3>{currentConfig.title}</h3>
@@ -697,6 +848,7 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
                   aria-selected={puzzleIndex === idx}
                   className={`puzzle-tab-btn ${puzzleIndex === idx ? 'active' : ''}`}
                   onClick={() => {
+                    HapticsService.light()
                     sfxService.play('card_flip')
                     setPuzzleIndex(idx)
                   }}
@@ -710,61 +862,100 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
               type="button"
               className="button button-secondary hint-toggle-btn"
               onClick={() => {
+                HapticsService.light()
                 sfxService.play('card_flip')
                 setShowHint((h) => !h)
               }}
               aria-label="Toggle puzzle hint"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              💡 {showHint ? 'Hide Hint' : 'Hint'}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+                <path d="M9 18h6 M10 22h4 M12 2v1 M12 14a5 5 0 0 0 4-4 4 4 0 0 0-8 0 5 5 0 0 0 4 4z" />
+              </svg>
+              <span>{showHint ? 'Hide Hint' : 'Hint'}</span>
             </button>
           </div>
 
-          {/* Hint Banner */}
           {showHint && (
-            <div className="workshop-hint-banner" role="alert">
-              <span className="hint-icon">💡</span>
-              <p>{currentConfig.hint}</p>
+            <div className="workshop-hint-banner" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+                <path d="M9 18h6 M10 22h4 M12 2v1 M12 14a5 5 0 0 0 4-4 4 4 0 0 0-8 0 5 5 0 0 0 4 4z" />
+              </svg>
+              <p style={{ margin: 0 }}>{currentConfig.hint}</p>
             </div>
           )}
 
-          {/* Interactive Physics Stage Canvas */}
-          <div className="canvas-wrapper">
+          {/* Interactive Physics Canvas */}
+          <div className="canvas-wrapper" style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <canvas
               ref={canvasRef}
               width={800}
               height={500}
               className="physics-canvas"
-              onClick={handleCanvasClick}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
               tabIndex={0}
               aria-label="Magic Machine Workbench simulation area. Click to place components or drag to reposition."
+              style={{
+                touchAction: 'none',
+                maxWidth: '100%',
+                maxHeight: '360px',
+                borderRadius: '16px',
+                border: '2px solid rgba(56, 189, 248, 0.3)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              }}
             />
 
-            {/* In-Canvas Floating Mascot Reaction Tip */}
-            {gameState.simulationStatus === 'failed' && (
-              <div className="mascot-feedback-bubble failed" role="alert">
-                <span className="mascot-avatar">🌱</span>
-                <div>
-                  <strong>Wobbly Launch!</strong>
-                  <p>Almost there! Tap 🔄 Reset, reposition your ramp or spring, and give it another spin!</p>
-                </div>
+            {/* First-Turn Animated Hand Hint */}
+            {gameState.placedComponents.length === 0 && gameState.simulationStatus === 'design' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(15, 23, 42, 0.92)',
+                  border: '1.5px solid #fbbf24',
+                  borderRadius: '9999px',
+                  padding: '6px 16px',
+                  color: '#fef08a',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                  animation: 'bounceGentle 2s infinite',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <polyline points="19 12 12 19 5 12" />
+                </svg>
+                <span>Select a part from the Magic Toolbox below and click to place it!</span>
               </div>
             )}
           </div>
 
-          {/* Chunky Machine Control Deck */}
-          <div className="workshop-control-deck">
-            <div className="primary-actions">
+          {/* Machine Control Deck */}
+          <div className="workshop-control-deck" style={{ padding: '8px 12px' }}>
+            <div className="primary-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {gameState.simulationStatus === 'running' ? (
                 <button
                   type="button"
                   className="button button-secondary machine-btn pause"
                   onClick={handlePause}
                   aria-label="Pause Machine Simulation (Spacebar)"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  ⏸️ PAUSE
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" />
+                    <rect x="14" y="4" width="4" height="16" />
+                  </svg>
+                  <span>PAUSE</span>
                 </button>
               ) : (
                 <button
@@ -772,8 +963,12 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
                   className="button button-primary machine-btn play"
                   onClick={handleStart}
                   aria-label="Test Machine Simulation (Spacebar)"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  ▶️ TEST MACHINE!
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  <span>TEST CONTRAPTION!</span>
                 </button>
               )}
 
@@ -782,8 +977,13 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
                 className="button button-secondary machine-btn reset"
                 onClick={handleReset}
                 aria-label="Reset Machine to Starting Position (R key)"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                🔄 RESET
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 4v6h-6" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                <span>RESET</span>
               </button>
 
               {gameState.selectedComponentId && (
@@ -791,26 +991,33 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
                   type="button"
                   className="button button-secondary machine-btn delete"
                   onClick={handleDeleteSelected}
-                  aria-label="Delete Selected Component (Delete key)"
+                  aria-label="Delete Selected Component"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  🗑️ REMOVE PART
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>REMOVE PART</span>
                 </button>
               )}
             </div>
 
-            <div className="keyboard-shortcuts-pill" aria-hidden="true">
-              <span>⌨️ Space = Play/Pause</span>
+            <div className="keyboard-shortcuts-pill" aria-hidden="true" style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '8px' }}>
+              <span>Space = Play/Pause</span>
               <span>R = Reset</span>
-              <span>Arrows = Move Part</span>
             </div>
           </div>
 
-          {/* Tactile Wooden Toolbox Drawer */}
+          {/* Toolbox Drawer */}
           <div className="wooden-toolbox-tray" aria-label="Toolbox Components">
             <div className="toolbox-header">
-              <span className="toolbox-icon">🧰</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
               <h4>Magic Toolbox</h4>
-              <span className="toolbox-subtitle">Select a part and click the workbench to place it</span>
+              <span className="toolbox-subtitle">Select a part and tap canvas to place</span>
             </div>
 
             <div className="toolbox-grid">
@@ -828,13 +1035,13 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
                     className={`toolbox-card ${isSelected ? 'selected' : ''} ${isExhausted ? 'exhausted' : ''}`}
                     disabled={isExhausted}
                     onClick={() => {
+                      HapticsService.light()
                       sfxService.play('component_pickup')
                       setSelectedToolboxType(isSelected ? null : tool.type)
                       setAriaAnnouncement(`Selected ${meta.name}. Click on workbench to place.`)
                     }}
                     aria-label={`${meta.name}, ${remaining} remaining. ${meta.description}`}
                   >
-                    <span className="toolbox-card-icon">{meta.icon}</span>
                     <span className="toolbox-card-name">{meta.name}</span>
                     <span className="toolbox-card-count">
                       {placedCount}/{tool.maxCount}
@@ -845,43 +1052,38 @@ export const MagicMachineLab: React.FC<MagicMachineLabProps> = ({
             </div>
           </div>
 
-          {/* Science of Wonder Dossier Card */}
           {showScienceDossier && (
             <div className="science-dossier-card" role="region" aria-label="Science of Wonder Discovery">
-              <div className="dossier-header">
-                <span className="dossier-emoji">🔬</span>
+              <div className="dossier-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2">
+                  <path d="M6 18h12 M12 2v4 M8 22h8 M9 6h6a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3z" />
+                </svg>
                 <h4>Science of Wonder: {currentConfig.scientificConcept.title}</h4>
               </div>
               <p className="dossier-desc">{currentConfig.scientificConcept.description}</p>
-              <div className="dossier-fun-fact">
-                <strong>💡 Fun Science Fact:</strong> {currentConfig.scientificConcept.funFact}
+              <div className="dossier-fun-fact" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <strong>Fun Science Fact:</strong> {currentConfig.scientificConcept.funFact}
               </div>
             </div>
           )}
         </div>
 
-        {/* Universal Reward Celebration Modal */}
-        {rewardStatus && (
-          <RewardCelebration
-            rewardStatus={rewardStatus}
-            onPrimaryAction={() => {
-              if (puzzleIndex < 3) {
-                setPuzzleIndex((prev) => prev + 1)
-              } else {
-                handleReset()
-              }
-            }}
-            primaryActionLabel={puzzleIndex < 3 ? 'Next Puzzle 🚀' : 'Play Again 🔄'}
-            secondaryAction={
-              onExit
-                ? {
-                    label: 'Exit to Playroom 🚪',
-                    onClick: onExit,
-                  }
-                : undefined
-            }
-          />
-        )}
+        {/* Victory Celebration Modal */}
+        <VictoryCelebrationModal
+          isOpen={gameState.simulationStatus === 'success'}
+          title="Contraption Calibrated! Level Solved!"
+          subtitle={`The Sproutling reached the Star Cradle using ${gameState.placedComponents.length} kinetic components!`}
+          badgeEmoji=""
+          xpEarned={gameState.telemetry.xp || 35}
+          starsEarned={gameState.telemetry.stars || 8}
+          nextLevelLabel="Next Sector Level ➔"
+          onNextLevel={() => {
+            HapticsService.medium()
+            setPuzzleIndex((prev) => prev + 1)
+            handleReset()
+          }}
+          onExit={onExit}
+        />
       </ActivityShell>
     </div>
   )

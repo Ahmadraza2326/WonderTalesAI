@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import React, { memo, useState } from 'react'
 import type { StoryRecord } from '../../types/story'
 
 interface IllustrationGalleryProps {

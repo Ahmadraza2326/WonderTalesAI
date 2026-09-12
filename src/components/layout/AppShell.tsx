@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Header } from './Header'
 import { Footer } from './Footer'
 import { MobileBottomNav } from './MobileBottomNav'
-import { OrbyCompanion } from '../companion/OrbyCompanion'
+import { CosmicAtmosphereBackdrop } from '../ui/design/CosmicAtmosphereBackdrop'
 import { useI18n } from '../../context/I18nContext'
 
 type AppShellProps = {
@@ -13,19 +14,57 @@ type AppShellProps = {
 
 export function AppShell({ children, theme, toggleTheme }: AppShellProps) {
   const { isRTL, locale } = useI18n()
+  const location = useLocation()
+  const isOverworld = location.pathname === '/' || location.pathname === '/overworld'
 
   return (
-    <div className="app-shell" dir={isRTL ? 'rtl' : 'ltr'} data-locale={locale}>
+    <div
+      className={`app-shell ${isOverworld ? 'app-shell--overworld' : ''}`}
+      dir={isRTL ? 'rtl' : 'ltr'}
+      data-locale={locale}
+      data-theme={isOverworld ? 'dark' : undefined}
+      style={{
+        position: 'relative',
+        minHeight: '100vh',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'transparent',
+      }}
+    >
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <Header theme={theme} toggleTheme={toggleTheme} />
-      <main id="main-content" className="main-content" tabIndex={-1}>
+
+      {/* Global High-Performance Cosmic Atmosphere Starfield */}
+      <CosmicAtmosphereBackdrop />
+
+      <Header theme={isOverworld ? 'dark' : theme} toggleTheme={toggleTheme} />
+
+      <main
+        id="main-content"
+        className="main-content"
+        tabIndex={-1}
+        style={{
+          position: isOverworld ? 'absolute' : 'relative',
+          inset: isOverworld ? 0 : undefined,
+          zIndex: 1,
+          flex: '1 0 auto',
+          width: '100%',
+          height: isOverworld ? '100%' : undefined,
+          boxSizing: 'border-box',
+          padding: 0,
+          margin: 0,
+        }}
+      >
         {children}
       </main>
-      <OrbyCompanion />
-      <Footer />
-      <MobileBottomNav />
+
+      {!isOverworld && <Footer />}
+      {!isOverworld && <MobileBottomNav />}
     </div>
   )
 }

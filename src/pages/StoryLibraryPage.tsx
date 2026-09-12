@@ -1,11 +1,17 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageContainer } from '../components/ui/PageContainer'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { EmptyState } from '../components/ui/EmptyState'
+import { StickyBackButton } from '../components/layout/StickyBackButton'
+import { StoryForm, type StoryFormValues } from '../components/ui/StoryForm'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../context/I18nContext'
 import { storyService } from '../services/storyService'
+import { storyOrchestrator } from '../services/StoryOrchestrator'
+import { generateStoryBook } from '../services/storybookGenerator'
+import { storyAssetCacheService } from '../services/storyAssetCacheService'
+import { HapticsService } from '../services/hapticsService'
 import type { StoryRecord } from '../types/story'
 import {
   StorySearchFilterBar,
@@ -24,6 +30,10 @@ const INITIAL_FILTERS: StoryFilterState = {
 
 export function StoryLibraryPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'create' ? 'create' : 'library'
+  const [activeSubTab, setActiveSubTab] = useState<'library' | 'create'>(initialTab)
+
   const { user } = useAuth()
   const { t } = useI18n()
 
@@ -31,6 +41,7 @@ export function StoryLibraryPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
+  const [isCreatingStory, setIsCreatingStory] = useState(false)
 
   // Filters state
   const [filters, setFilters] = useState<StoryFilterState>(INITIAL_FILTERS)
@@ -229,32 +240,123 @@ export function StoryLibraryPage() {
     filters.selectedTheme !== null ||
     filters.selectedLanguage !== null
 
+  // 1-Click Story Creation Action
+  const handleCreateStory = async (values: StoryFormValues) => {
+    if (!user) {
+      setErrorMessage(t('auth_intro'))
+      return
+    }
+
+    setIsCreatingStory(true)
+    setErrorMessage(null)
+    setFeedbackMessage(null)
+
+    const { data: createdStory, error: createErr } = await storyService.createStory(user.id, values)
+
+    if (createErr || !createdStory) {
+      setErrorMessage(createErr?.message || 'Unable to create story.')
+      setIsCreatingStory(false)
+      return
+    }
+
+    try {
+      let finalizedStory = createdStory
+      if (!createdStory.learning_package) {
+        try {
+          finalizedStory = await storyOrchestrator.generateLearningPackage(createdStory, user.id)
+        } catch (orchErr) {
+          console.warn('Learning package generation deferred to reader:', orchErr)
+        }
+      }
+
+      const storyBook = await generateStoryBook(finalizedStory)
+      await storyAssetCacheService.saveStoryBook(finalizedStory, user.id, storyBook)
+
+      setIsCreatingStory(false)
+      navigate(`/stories/${finalizedStory.id}`)
+    } catch (pipelineErr) {
+      console.warn('Atomic story pipeline encountered non-fatal error, proceeding to reader:', pipelineErr)
+      setIsCreatingStory(false)
+      navigate(`/stories/${createdStory.id}`)
+    }
+  }
+
+  const handleTabSwitch = (tab: 'library' | 'create') => {
+    HapticsService.light()
+    setActiveSubTab(tab)
+    setSearchParams(tab === 'create' ? { tab: 'create' } : {})
+  }
+
   return (
     <PageContainer
-      title={t('library_title')}
-      intro={t('library_intro')}
+      title={activeSubTab === 'create' ? t('story_studio_title') : t('library_title')}
+      intro={activeSubTab === 'create' ? t('story_studio_intro') : t('library_intro')}
     >
-      <div className="story-library-layout">
-        {/* Top Header Bar */}
-        <div className="library-top-bar">
-          <div className="library-title-summary">
-            <span className="library-count-badge">
-              📚 {stories.length} {t('my_stories')}
-            </span>
-            {favoriteCount > 0 && (
-              <span className="library-favorites-badge">
-                ⭐ {favoriteCount} {t('favorites')}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => navigate('/stories/new')}
-          >
-            ✨ {t('create_new_story')}
-          </button>
+      <StickyBackButton fallbackTo="/overworld" label="Overworld Map" />
+
+      {/* Workspace Sub-Tabs Navigation */}
+      <div
+        className="workspace-subtabs-nav"
+        style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '24px',
+          borderBottom: '1.5px solid rgba(255, 255, 255, 0.12)',
+          paddingBottom: '12px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => handleTabSwitch('library')}
+          className={`button ${activeSubTab === 'library' ? 'button-primary' : 'button-secondary'}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <span>📚 {t('my_stories')}</span>
+          <span style={{ background: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '9999px', fontSize: '11px' }}>
+            {stories.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabSwitch('create')}
+          className={`button ${activeSubTab === 'create' ? 'button-primary' : 'button-secondary'}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <span>✨ {t('create_story')}</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'create' ? (
+        <div className="workspace-create-view" style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <StoryForm
+            onSubmit={handleCreateStory}
+            isSubmitting={isCreatingStory}
+            errorMessage={errorMessage}
+            successMessage={feedbackMessage}
+          />
         </div>
+      ) : (
+        <div className="story-library-layout">
+          {/* Top Header Bar */}
+          <div className="library-top-bar">
+            <div className="library-title-summary">
+              <span className="library-count-badge">
+                📚 {stories.length} {t('my_stories')}
+              </span>
+              {favoriteCount > 0 && (
+                <span className="library-favorites-badge">
+                  ⭐ {favoriteCount} {t('favorites')}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleTabSwitch('create')}
+            >
+              ✨ {t('create_new_story')}
+            </button>
+          </div>
 
         {/* Feedback / Error Banners */}
         {feedbackMessage && (
@@ -358,6 +460,7 @@ export function StoryLibraryPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <DeleteStoryModal

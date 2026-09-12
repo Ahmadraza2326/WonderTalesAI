@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import { childProfileService } from '../services/childProfileService'
 import type { ChildProfile } from '../types/childProfile'
 import { CreatureLab } from '../components/games/creature-lab/CreatureLab'
+import { StickyBackButton } from '../components/layout/StickyBackButton'
+
+import { computeExplorerTitle } from '../services/progressionService'
 
 export function CreatureLabPage() {
   const navigate = useNavigate()
@@ -33,19 +36,37 @@ export function CreatureLabPage() {
     void loadChild()
   }, [user])
 
+  const explorerLevel = computeExplorerTitle(activeChild?.xp || 0).level
+
   return (
     <div
       style={{
-        minHeight: 'calc(100vh - 64px)',
+        height: 'calc(100vh - 75px)',
+        maxHeight: 'calc(100vh - 75px)',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      <CreatureLab
-        childId={activeChild?.id}
-        childName={activeChild?.name || 'Explorer'}
-        onBack={() => navigate('/dashboard')}
-      />
+      <StickyBackButton fallbackTo="/games" label="Playroom Games" />
+      <div
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          transform: 'scale(0.95)',
+          transformOrigin: 'top center',
+        }}
+      >
+        <CreatureLab
+          childId={activeChild?.id}
+          childName={activeChild?.name || 'Explorer'}
+          explorerLevel={explorerLevel}
+          onBack={() => navigate('/games')}
+        />
+      </div>
     </div>
   )
 }

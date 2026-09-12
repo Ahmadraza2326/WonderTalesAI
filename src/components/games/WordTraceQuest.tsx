@@ -40,6 +40,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
   >([])
   const [mistakes, setMistakes] = useState(0)
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [activeHintTier, setActiveHintTier] = useState<number>(0)
   const [startTime, setStartTime] = useState<number>(Date.now())
   const [isWordSolved, setIsWordSolved] = useState(false)
   const [completionResult, setCompletionResult] =
@@ -53,6 +54,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
     setPlacedTiles([])
     setMistakes(0)
     setHintsUsed(0)
+    setActiveHintTier(0)
     setStartTime(Date.now())
     setIsWordSolved(false)
     setCompletionResult(null)
@@ -153,22 +155,13 @@ export const WordTraceQuest = memo(function WordTraceQuest({
     setPlacedTiles([])
   }
 
+  // Progressive Hint Handler: Cycles 1 -> 2 -> 3
   const handleHint = () => {
     if (isWordSolved || !currentChallenge) return
-    const nextExpectedIndex = placedTiles.length
-    if (nextExpectedIndex >= currentChallenge.word.length) return
-
-    const expectedLetter = currentChallenge.word[nextExpectedIndex]
-    const availableTile = currentChallenge.scrambledLetters.find(
-      (tile) =>
-        tile.letter.toUpperCase() === expectedLetter &&
-        !placedTiles.some((pt) => pt.tileId === tile.id)
-    )
-
-    if (availableTile) {
-      setHintsUsed((prev) => prev + 1)
-      handlePlaceLetter(availableTile.id, availableTile.letter)
-    }
+    sfxService.resumeContext().catch(() => {})
+    sfxService.play('star_pop')
+    setHintsUsed((prev) => prev + 1)
+    setActiveHintTier((prev) => (prev < 3 ? prev + 1 : 1))
   }
 
   const handleNextWord = () => {
@@ -176,6 +169,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
       sfxService.play('card_flip')
       setCurrentWordIndex((prev) => prev + 1)
       setPlacedTiles([])
+      setActiveHintTier(0)
       setIsWordSolved(false)
     }
   }
@@ -187,6 +181,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
     setPlacedTiles([])
     setMistakes(0)
     setHintsUsed(0)
+    setActiveHintTier(0)
     setStartTime(Date.now())
     setIsWordSolved(false)
     setCompletionResult(null)
@@ -230,6 +225,11 @@ export const WordTraceQuest = memo(function WordTraceQuest({
   const targetLetters = currentChallenge ? currentChallenge.word.split('') : []
   const placedTileIds = new Set(placedTiles.map((t) => t.tileId))
 
+  // Find next target letter tile for Tier 3 hint highlight
+  const nextTargetChar = currentChallenge && !isWordSolved && placedTiles.length < currentChallenge.word.length
+    ? currentChallenge.word[placedTiles.length]
+    : null
+
   return (
     <ActivityShell
       title="Word Trace & Vocabulary Quest"
@@ -257,66 +257,69 @@ export const WordTraceQuest = memo(function WordTraceQuest({
           rewardStatus={rewardStatus}
           statsSummary={[
             { label: 'Mistakes', value: completionResult.mistakes },
-            { label: 'Hints', value: completionResult.hintsUsed },
+            { label: 'Hints Used', value: completionResult.hintsUsed },
             { label: 'Time', value: `${completionResult.durationSeconds}s` },
           ]}
           onPrimaryAction={handleRestart}
           primaryActionLabel="Play Again 🔄"
         />
       ) : currentChallenge ? (
-        <div>
+        <div className="flex flex-col gap-4 max-w-2xl mx-auto">
           {/* Metadata pill row */}
           <div
             style={{
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '0.75rem',
               gap: '0.5rem',
               flexWrap: 'wrap',
             }}
           >
-            {currentChallenge.partOfSpeech ? (
-              <span
-                className="card-pill"
-                style={{
-                  backgroundColor: 'rgba(104, 74, 255, 0.08)',
-                  color: 'var(--brand-purple, #684aff)',
-                  border: '1px solid rgba(104, 74, 255, 0.25)',
-                  margin: 0,
-                }}
-              >
-                {currentChallenge.partOfSpeech}
-              </span>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {currentChallenge.partOfSpeech ? (
+                <span
+                  className="card-pill"
+                  style={{
+                    backgroundColor: 'rgba(104, 74, 255, 0.12)',
+                    color: 'var(--brand-purple, #684aff)',
+                    border: '1px solid rgba(104, 74, 255, 0.25)',
+                    margin: 0,
+                    fontWeight: 700,
+                  }}
+                >
+                  {currentChallenge.partOfSpeech}
+                </span>
+              ) : null}
+            </div>
+
             <span
               className="card-pill"
               style={{
                 backgroundColor: 'rgba(0,0,0,0.04)',
                 border: '1px solid var(--border, #e2e8f0)',
                 margin: 0,
+                fontWeight: 600,
               }}
             >
-              {currentChallenge.letterCount} letters (
-              {currentChallenge.vowelCount} vowels)
+              {currentChallenge.letterCount} letters ({currentChallenge.vowelCount} vowels)
             </span>
           </div>
 
-          {/* Meaning & Sentence Box */}
+          {/* Meaning & Sentence Box (Leak-Free) */}
           <div
             style={{
-              padding: '1rem',
-              borderRadius: '0.75rem',
+              padding: '1.25rem',
+              borderRadius: '1rem',
               backgroundColor: 'var(--surface-alt, #f8fafc)',
               border: '1px solid var(--border, #e2e8f0)',
-              marginBottom: '1.25rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}
           >
             <p
               style={{
-                margin: '0 0 0.4rem',
+                margin: '0 0 0.5rem',
                 fontSize: '1.05rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 color: 'var(--text-heading, #1e293b)',
               }}
             >
@@ -328,15 +331,39 @@ export const WordTraceQuest = memo(function WordTraceQuest({
                 fontSize: '0.95rem',
                 color: 'var(--text-muted, #64748b)',
                 fontStyle: 'italic',
+                lineHeight: 1.5,
               }}
             >
-              "
-              {isWordSolved
-                ? currentChallenge.fullSentence
-                : currentChallenge.clozeSentence}
-              "
+              "{isWordSolved ? currentChallenge.fullSentence : currentChallenge.clozeSentence}"
             </p>
           </div>
+
+          {/* Progressive Hint Drawer */}
+          {activeHintTier > 0 && !isWordSolved && currentChallenge.hints ? (
+            <div
+              style={{
+                padding: '1rem 1.25rem',
+                borderRadius: '0.85rem',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: '#b45309',
+                fontSize: '0.92rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.65rem',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem' }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.75rem', display: 'block', marginBottom: '2px' }}>
+                  Progressive Hint (Level {activeHintTier}/3)
+                </span>
+                {activeHintTier === 1 && <p style={{ margin: 0 }}>{currentChallenge.hints.phoneticClue}</p>}
+                {activeHintTier === 2 && <p style={{ margin: 0 }}>{currentChallenge.hints.syllableClue}</p>}
+                {activeHintTier >= 3 && <p style={{ margin: 0 }}>{currentChallenge.hints.firstLetterClue}</p>}
+              </div>
+            </div>
+          ) : null}
 
           {/* Letter Slots */}
           <div
@@ -344,7 +371,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
               display: 'flex',
               justifyContent: 'center',
               gap: '0.5rem',
-              marginBottom: '1.5rem',
+              margin: '0.5rem 0 1rem',
               flexWrap: 'wrap',
             }}
             role="region"
@@ -356,9 +383,9 @@ export const WordTraceQuest = memo(function WordTraceQuest({
                 <div
                   key={idx}
                   style={{
-                    width: '2.75rem',
-                    height: '3.25rem',
-                    borderRadius: '0.6rem',
+                    width: '3rem',
+                    height: '3.5rem',
+                    borderRadius: '0.75rem',
                     border: placed
                       ? isWordSolved
                         ? '2px solid #16a34a'
@@ -366,18 +393,19 @@ export const WordTraceQuest = memo(function WordTraceQuest({
                       : '2px dashed var(--border, #cbd5e1)',
                     backgroundColor: placed
                       ? isWordSolved
-                        ? 'rgba(34, 197, 94, 0.12)'
-                        : 'rgba(104, 74, 255, 0.08)'
+                        ? 'rgba(34, 197, 94, 0.14)'
+                        : 'rgba(104, 74, 255, 0.1)'
                       : '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.4rem',
-                    fontWeight: 700,
+                    fontSize: '1.5rem',
+                    fontWeight: 800,
                     color: isWordSolved
                       ? '#15803d'
                       : 'var(--text-heading, #1e293b)',
                     transition: 'all 150ms ease',
+                    boxShadow: placed ? '0 4px 12px rgba(104, 74, 255, 0.15)' : 'none',
                   }}
                 >
                   {placed ? placed.letter : ''}
@@ -392,25 +420,25 @@ export const WordTraceQuest = memo(function WordTraceQuest({
               style={{
                 display: 'flex',
                 justifyContent: 'center',
-                gap: '0.5rem',
-                marginBottom: '1.25rem',
+                gap: '0.65rem',
+                marginBottom: '0.5rem',
               }}
             >
               <button
                 type="button"
                 className="button button-outline"
                 onClick={handleHint}
-                style={{ padding: '0.4rem 0.85rem', fontSize: '0.88rem', minHeight: '44px', minWidth: '44px' }}
-                aria-label="Hint: Reveal next letter"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', minHeight: '44px', minWidth: '44px', fontWeight: 700 }}
+                aria-label={`Progressive Hint: Current level ${activeHintTier} of 3`}
               >
-                💡 Hint
+                💡 Hint {activeHintTier > 0 ? `(${activeHintTier}/3)` : ''}
               </button>
               <button
                 type="button"
                 className="button button-outline"
                 onClick={handleBackspace}
                 disabled={placedTiles.length === 0}
-                style={{ padding: '0.4rem 0.85rem', fontSize: '0.88rem', minHeight: '44px', minWidth: '44px' }}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', minHeight: '44px', minWidth: '44px' }}
                 aria-label="Backspace letter"
               >
                 ⌫ Undo
@@ -420,7 +448,7 @@ export const WordTraceQuest = memo(function WordTraceQuest({
                 className="button button-outline"
                 onClick={handleResetWord}
                 disabled={placedTiles.length === 0}
-                style={{ padding: '0.4rem 0.85rem', fontSize: '0.88rem', minHeight: '44px', minWidth: '44px' }}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', minHeight: '44px', minWidth: '44px' }}
                 aria-label="Reset word"
               >
                 🔄 Clear
@@ -434,15 +462,17 @@ export const WordTraceQuest = memo(function WordTraceQuest({
               style={{
                 display: 'flex',
                 justifyContent: 'center',
-                gap: '0.5rem',
+                gap: '0.6rem',
                 flexWrap: 'wrap',
-                marginBottom: '1rem',
+                margin: '0.5rem 0',
               }}
               role="group"
               aria-label="Available letter tiles"
             >
               {currentChallenge.scrambledLetters.map((tile) => {
                 const isPlaced = placedTileIds.has(tile.id)
+                const isHintHighlighted = activeHintTier >= 3 && !isPlaced && tile.letter === nextTargetChar
+
                 return (
                   <button
                     key={tile.id}
@@ -452,29 +482,36 @@ export const WordTraceQuest = memo(function WordTraceQuest({
                     aria-label={`Letter ${tile.letter}`}
                     aria-disabled={isPlaced}
                     style={{
-                      width: '3rem',
-                      height: '3.25rem',
-                      borderRadius: '0.65rem',
+                      width: '3.25rem',
+                      height: '3.5rem',
+                      borderRadius: '0.75rem',
                       border: isPlaced
                         ? '1px solid transparent'
+                        : isHintHighlighted
+                        ? '2.5px solid #f59e0b'
                         : '1.5px solid var(--border, #e2e8f0)',
                       backgroundColor: isPlaced
                         ? 'rgba(0,0,0,0.04)'
+                        : isHintHighlighted
+                        ? 'rgba(254, 243, 199, 0.9)'
                         : 'var(--surface-alt, #f8fafc)',
                       color: isPlaced
                         ? 'transparent'
                         : 'var(--text-heading, #1e293b)',
-                      fontSize: '1.3rem',
-                      fontWeight: 700,
+                      fontSize: '1.4rem',
+                      fontWeight: 800,
                       cursor: isPlaced ? 'default' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       transition:
-                        'transform 120ms ease, background-color 150ms ease',
+                        'transform 120ms ease, background-color 150ms ease, border-color 150ms ease',
                       boxShadow: isPlaced
                         ? 'none'
-                        : '0 2px 6px rgba(0,0,0,0.06)',
+                        : isHintHighlighted
+                        ? '0 0 16px rgba(245, 158, 11, 0.4)'
+                        : '0 2px 8px rgba(0,0,0,0.08)',
+                      transform: isHintHighlighted ? 'scale(1.05)' : 'none',
                     }}
                   >
                     {isPlaced ? '' : tile.letter}
@@ -486,31 +523,32 @@ export const WordTraceQuest = memo(function WordTraceQuest({
             /* Word Solved Celebration Box */
             <div
               style={{
-                padding: '1rem',
-                borderRadius: '0.75rem',
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                border: '1px solid rgba(34, 197, 94, 0.4)',
+                padding: '1.25rem',
+                borderRadius: '1rem',
+                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                border: '1.5px solid rgba(34, 197, 94, 0.5)',
                 textAlign: 'center',
-                marginBottom: '1rem',
+                margin: '0.5rem 0',
               }}
             >
               <p
                 style={{
                   margin: '0 0 0.75rem',
-                  fontWeight: 700,
-                  fontSize: '1.1rem',
+                  fontWeight: 800,
+                  fontSize: '1.15rem',
                   color: '#15803d',
                 }}
               >
-                ✨ Perfect! You spelled "{currentChallenge.word}"!
+                ✨ Perfect! You mastered "{currentChallenge.word}"!
               </p>
               {currentWordIndex + 1 < game.totalWords ? (
                 <button
                   type="button"
                   className="button button-primary"
                   onClick={handleNextWord}
+                  style={{ fontWeight: 700 }}
                 >
-                  Next Word →
+                  Next Word ➔
                 </button>
               ) : null}
             </div>

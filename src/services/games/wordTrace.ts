@@ -23,6 +23,45 @@ export function createSeededRandom(seedStr: string): () => number {
 const COMMON_DISTRACTOR_LETTERS = ['E', 'A', 'R', 'I', 'O', 'T', 'N', 'S', 'L', 'C']
 
 /**
+ * Sanitizes clue texts to guarantee the target word is NEVER revealed in hints or meaning prompts.
+ */
+export function sanitizeClueText(text: string, targetWord: string): string {
+  if (!text || !targetWord) return text
+  // Redact whole word and simple stem variations
+  const stem = targetWord.length > 4 ? targetWord.slice(0, -1) : targetWord
+  const regex = new RegExp(`\\b${stem}\\w*\\b`, 'gi')
+  return text.replace(regex, '_______')
+}
+
+/**
+ * Generates structured 3-tier progressive hints.
+ */
+export function generateProgressiveHints(
+  word: string,
+  meaning: string,
+  partOfSpeech?: string,
+  synonym?: string
+): { phoneticClue: string; syllableClue: string; firstLetterClue: string } {
+  const upper = word.toUpperCase()
+  const vCount = (upper.match(/[AEIOU]/gi) || []).length
+  const cCount = upper.length - vCount
+
+  const sanitizedMeaning = sanitizeClueText(meaning, word)
+  const posText = partOfSpeech ? `(${partOfSpeech}) ` : ''
+  const synText = synonym && synonym.toUpperCase() !== upper ? ` Often related to "${synonym}".` : ''
+
+  const phoneticClue = `${posText}Clue: ${sanitizedMeaning}.${synText}`
+  const syllableClue = `Word structure: ${upper.length} letters (${vCount} ${vCount === 1 ? 'vowel' : 'vowels'}, ${cCount} ${cCount === 1 ? 'consonant' : 'consonants'}).`
+  const firstLetterClue = `Sound out the beginning: this word starts with "${upper[0]}".`
+
+  return {
+    phoneticClue,
+    syllableClue,
+    firstLetterClue,
+  }
+}
+
+/**
  * Extracts and normalizes vocabulary candidates from Story DNA for word tracing.
  */
 export function extractWordTraceCandidates(
@@ -56,23 +95,24 @@ export function extractWordTraceCandidates(
     seenWords.add(upperWord)
 
     const rawMeaning = typeof v.meaning === 'string' && v.meaning.trim() ? v.meaning.trim() : 'A special story word'
+    const sanitizedMeaning = sanitizeClueText(rawMeaning, cleanWord)
     const rawExample = typeof v.example === 'string' && v.example.trim() ? v.example.trim() : ''
 
-    // Construct cloze sentence
+    // Construct cloze sentence strictly hiding the target word
     let clozeSentence = ''
     let fullSentence = ''
 
     if (rawExample) {
-      const regex = new RegExp(`\\b${cleanWord}\\b`, 'i')
+      const regex = new RegExp(`\\b${cleanWord}\\b`, 'gi')
       if (regex.test(rawExample)) {
         clozeSentence = rawExample.replace(regex, '_______')
         fullSentence = rawExample
       } else {
-        clozeSentence = `${rawExample} (Word: _______)`
-        fullSentence = `${rawExample} (Word: ${cleanWord})`
+        clozeSentence = `${sanitizeClueText(rawExample, cleanWord)}: _______`
+        fullSentence = `${rawExample}: ${cleanWord}`
       }
     } else {
-      clozeSentence = `It means "${rawMeaning}": _______`
+      clozeSentence = `It means "${sanitizedMeaning}": _______`
       fullSentence = `It means "${rawMeaning}": ${cleanWord}`
     }
 
@@ -107,11 +147,12 @@ export function extractWordTraceCandidates(
     }
 
     const vCount = countVowels(upperWord)
+    const hints = generateProgressiveHints(upperWord, sanitizedMeaning, v.partOfSpeech, v.synonym)
 
     challenges.push({
       id: `word-challenge-${index}-${upperWord.toLowerCase()}`,
       word: upperWord,
-      meaning: rawMeaning,
+      meaning: sanitizedMeaning,
       clozeSentence,
       fullSentence,
       partOfSpeech: v.partOfSpeech || undefined,
@@ -120,6 +161,7 @@ export function extractWordTraceCandidates(
       letterCount: cleanWord.length,
       vowelCount: vCount,
       consonantCount: cleanWord.length - vCount,
+      hints,
       scrambledLetters: letters,
     })
   })
@@ -151,18 +193,19 @@ export function extractWordTraceCandidates(
       }
 
       const vCount = countVowels(upperChar)
+      const hints = generateProgressiveHints(upperChar, 'Our story companion from the tale')
 
       challenges.push({
         id: `char-challenge-${index}-${upperChar.toLowerCase()}`,
         word: upperChar,
-        meaning: `A key character in the story: ${charName}`,
+        meaning: 'A companion from our adventure tale',
         clozeSentence: `Our story friend: _______`,
-        fullSentence: `Our story friend: ${charName}`,
-        partOfSpeech: 'Noun',
+        fullSentence: `Our story friend: ${cleanChar}`,
         difficulty: 'easy',
         letterCount: cleanChar.length,
         vowelCount: vCount,
         consonantCount: cleanChar.length - vCount,
+        hints,
         scrambledLetters: letters,
       })
     })

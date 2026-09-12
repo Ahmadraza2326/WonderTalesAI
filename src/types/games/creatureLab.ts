@@ -37,6 +37,25 @@ export interface CreatureRecipe {
   temperature?: 'cool' | 'warm' | 'blazing'
 }
 
+export type CreatureMutationVariant =
+  | 'normal'
+  | 'golden'
+  | 'spectral'
+  | 'iridescent'
+  | 'starlight_celestial'
+
+export interface CreatureMutation {
+  variant: CreatureMutationVariant
+  name: string
+  titlePrefix: string
+  auraColor: string
+  sparkleEmoji: string
+  bonusXp: number
+  bonusStars: number
+  mutationDescription: string
+  specialTrait: CreatureTrait
+}
+
 export interface CreatureSpecies {
   id: string
   name: string
@@ -57,6 +76,7 @@ export interface CreatureSpecies {
   recipe: CreatureRecipe
   traits: CreatureTrait[]
   habitatPreference: 'grove' | 'crystal_cave' | 'cloud_citadel' | 'stardust_observatory'
+  mutation?: CreatureMutation
 }
 
 export interface DiscoveredCreatureMetadata {
@@ -65,6 +85,7 @@ export interface DiscoveredCreatureMetadata {
   recipeEssences: string[]
   discoveryCount: number
   customNickname?: string
+  mutationVariant?: CreatureMutationVariant
 }
 
 export interface HappyAccidentReaction {
@@ -86,6 +107,7 @@ export interface BrewResult {
   xpAwarded: number
   starsAwarded: number
   stardustAwarded: number
+  mutation?: CreatureMutation
 }
 
 export type CauldronState =
@@ -100,4 +122,5 @@ export interface GuestMigrationResult {
   stardustTransferred: number
   success: boolean
 }
+
 

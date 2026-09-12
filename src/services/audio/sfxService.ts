@@ -1,4 +1,5 @@
 export type SfxCue =
+  | 'button_click'
   | 'card_flip'
   | 'match_success'
   | 'mistake_soft'
@@ -37,6 +38,19 @@ export type SfxCue =
   | 'creature_feed'
   | 'creature_purr'
   | 'treat_pop'
+  | 'forge_hammer'
+  | 'spell_awaken'
+  | 'rune_snap'
+  | 'marimba_strike'
+  | 'rhyme_match'
+  | 'beat_pulse'
+
+export interface AudioState {
+  isMuted: boolean
+  isMusicActive: boolean
+  masterVolume: number
+  musicVolume: number
+}
 
 class SfxService {
   private audioCtx: AudioContext | null = null
@@ -44,16 +58,93 @@ class SfxService {
   private masterVolume: number = 0.4
   private storageKey = 'wondertales_sfx_muted'
 
+  // Ambient Soundscape Music Engine
+  private isMusicActive: boolean = false
+  private musicVolume: number = 0.18
+  private musicStorageKey = 'wondertales_music_enabled'
+  private listeners: Set<(state: AudioState) => void> = new Set()
+  private musicNodes: {
+    gain: GainNode
+    filter: BiquadFilterNode
+    lfo: OscillatorNode
+    lfoGain: GainNode
+    oscs: OscillatorNode[]
+  } | null = null
+  private musicInterval: ReturnType<typeof setInterval> | null = null
+  private chordIndex: number = 0
+
   constructor() {
-    // Read persisted mute state if in browser
+    // Read persisted mute and music state if in browser
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const saved = window.localStorage.getItem(this.storageKey)
         if (saved !== null) {
           this.isAudioMuted = saved === 'true'
         }
+        const savedMusic = window.localStorage.getItem(this.musicStorageKey)
+        if (savedMusic !== null) {
+          this.isMusicActive = savedMusic === 'true'
+        }
       } catch {
         // Ignore localStorage access errors
+      }
+    }
+
+    // Auto-resume AudioContext on first user interaction in browser
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        this.resumeContext().catch(() => {})
+        window.removeEventListener('pointerdown', unlock)
+        window.removeEventListener('touchstart', unlock)
+        window.removeEventListener('keydown', unlock)
+      }
+      window.addEventListener('pointerdown', unlock, { once: true, passive: true })
+      window.addEventListener('touchstart', unlock, { once: true, passive: true })
+      window.addEventListener('keydown', unlock, { once: true, passive: true })
+    }
+  }
+
+  /**
+   * Subscribe to live audio state changes.
+   */
+  public subscribe(listener: (state: AudioState) => void): () => void {
+    this.listeners.add(listener)
+    listener(this.getState())
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  public getState(): AudioState {
+    return {
+      isMuted: this.isAudioMuted,
+      isMusicActive: this.isMusicActive,
+      masterVolume: this.masterVolume,
+      musicVolume: this.musicVolume,
+    }
+  }
+
+  private notifyListeners(): void {
+    const state = this.getState()
+    this.listeners.forEach((listener) => {
+      try {
+        listener(state)
+      } catch {
+        // Safe callback execution
+      }
+    })
+  }
+
+  /**
+   * Public helper to guarantee the Web AudioContext is active and resumed.
+   */
+  public async resumeContext(): Promise<void> {
+    const ctx = this.getAudioContext()
+    if (ctx && ctx.state === 'suspended') {
+      try {
+        await ctx.resume()
+      } catch {
+        // Safe fallback
       }
     }
   }
@@ -104,6 +195,10 @@ class SfxService {
         // Ignore storage errors
       }
     }
+    if (this.isAudioMuted) {
+      this.stopMusic()
+    }
+    this.notifyListeners()
   }
 
   /**
@@ -119,6 +214,7 @@ class SfxService {
    */
   public setVolume(volume: number): void {
     this.masterVolume = Math.max(0, Math.min(1, Number(volume) || 0.4))
+    this.notifyListeners()
   }
 
   /**
@@ -126,6 +222,283 @@ class SfxService {
    */
   public getVolume(): number {
     return this.masterVolume
+  }
+
+  /**
+   * Synthesizes an interactive pitched marimba/rune note across the Pentatonic scale.
+   */
+  public playMarimbaNote(freqHz: number = 523.25): void {
+    if (this.isAudioMuted) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.28)
+
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freqHz, now)
+      osc.frequency.exponentialRampToValueAtTime(freqHz * 0.98, now + 0.3)
+
+      gain.gain.setValueAtTime(0.28 * this.masterVolume, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38)
+
+      osc.connect(gain)
+      osc.start(now)
+      osc.stop(now + 0.4)
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  /**
+   * Plays a pentatonic rune tone by index: 0=C5, 1=D5, 2=E5, 3=G5, 4=A5, 5=C6
+   */
+  public playRuneTone(pitchIndex: number = 0): void {
+    const PENTATONIC_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5]
+    const freq = PENTATONIC_SCALE[Math.abs(pitchIndex) % PENTATONIC_SCALE.length]
+    this.playMarimbaNote(freq)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ambient Soundscape Music Engine (Zero-Egress Procedural Synthesis)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Checks if background ambient music is currently active.
+   */
+  public isMusicPlaying(): boolean {
+    return this.isMusicActive
+  }
+
+  /**
+   * Adjust ambient music volume (0.0 to 1.0).
+   */
+  public setMusicVolume(volume: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, Number(volume) || 0.18))
+    if (this.musicNodes && this.audioCtx) {
+      try {
+        this.musicNodes.gain.gain.setValueAtTime(this.musicVolume, this.audioCtx.currentTime)
+      } catch {
+        // Safe fallback
+      }
+    }
+    this.notifyListeners()
+  }
+
+  /**
+   * Dynamically ducks ambient background music by ~12dB during character narration/speech.
+   */
+  public duckMusic(ducked: boolean = true): void {
+    if (!this.isMusicActive || !this.musicNodes || !this.audioCtx) return
+
+    try {
+      const now = this.audioCtx.currentTime
+      const targetGain = ducked ? Math.min(0.04, this.musicVolume * 0.25) : this.musicVolume
+      const duration = ducked ? 0.12 : 0.35
+
+      this.musicNodes.gain.gain.cancelScheduledValues(now)
+      this.musicNodes.gain.gain.setValueAtTime(this.musicNodes.gain.gain.value, now)
+      this.musicNodes.gain.gain.linearRampToValueAtTime(targetGain, now + duration)
+    } catch {
+      // Safe fallback
+    }
+  }
+
+  /**
+   * Toggles ambient background soundscape music on/off.
+   */
+  public toggleMusic(): boolean {
+    if (this.isMusicActive) {
+      this.stopMusic()
+    } else {
+      this.startMusic()
+    }
+    return this.isMusicActive
+  }
+
+  /**
+   * Starts non-intrusive procedural ambient soundscape pad + chimes loop.
+   */
+  public startMusic(): void {
+    if (this.isAudioMuted) return
+    this.resumeContext().catch(() => {})
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+
+    try {
+      this.stopMusic() // Clean up any active timers/nodes
+      this.isMusicActive = true
+
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(this.musicStorageKey, 'true')
+        } catch {
+          // Ignore storage errors
+        }
+      }
+
+      this.playNextUpbeatArpeggioLoop()
+
+      // Loop a 4-bar bouncy progression (2.0s per bar = 8.0s full progression cycle)
+      this.musicInterval = setInterval(() => {
+        if (this.isMusicActive && !this.isAudioMuted) {
+          this.playNextUpbeatArpeggioLoop()
+        }
+      }, 2000)
+      this.notifyListeners()
+    } catch {
+      // Audio errors must never throw
+    }
+  }
+
+  /**
+   * Stops active ambient soundscape.
+   */
+  public stopMusic(): void {
+    this.isMusicActive = false
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(this.musicStorageKey, 'false')
+      } catch {
+        // Ignore storage errors
+      }
+    }
+    if (this.musicInterval) {
+      clearInterval(this.musicInterval)
+      this.musicInterval = null
+    }
+
+    if (this.musicNodes && this.audioCtx) {
+      try {
+        const now = this.audioCtx.currentTime
+        this.musicNodes.gain.gain.linearRampToValueAtTime(0.001, now + 0.4)
+        setTimeout(() => {
+          if (this.musicNodes) {
+            this.musicNodes.oscs.forEach((osc) => {
+              try {
+                osc.stop()
+                osc.disconnect()
+              } catch {}
+            })
+            try {
+              this.musicNodes.lfo.stop()
+              this.musicNodes.lfo.disconnect()
+            } catch {}
+            this.musicNodes = null
+          }
+        }, 450)
+      } catch {
+        this.musicNodes = null
+      }
+    }
+    this.notifyListeners()
+  }
+
+  /**
+   * Procedural Upbeat Arpeggio Synthesizer (120 BPM, C-E-G-A bouncy progression).
+   * Generates playful, rhythmic marimba plucks & cheerful chord tones.
+   */
+  private playNextUpbeatArpeggioLoop(): void {
+    const ctx = this.getAudioContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+
+      // 4-Bar Upbeat Progression: C Major -> G Major -> A Minor -> F Major
+      const progressionBars = [
+        // Bar 1: C Major (C4, E4, G4, A4, C5)
+        { bass: 130.81, notes: [261.63, 329.63, 392.0, 440.0, 523.25], root: 261.63 },
+        // Bar 2: G Major (G3, B3, D4, G4, B4)
+        { bass: 98.0, notes: [196.0, 246.94, 293.66, 392.0, 493.88], root: 196.0 },
+        // Bar 3: A Minor (A3, C4, E4, A4, C5)
+        { bass: 110.0, notes: [220.0, 261.63, 329.63, 440.0, 523.25], root: 220.0 },
+        // Bar 4: F Major (F3, A3, C4, F4, A4)
+        { bass: 87.31, notes: [174.61, 220.0, 261.63, 349.23, 440.0], root: 174.61 },
+      ]
+
+      const bar = progressionBars[this.chordIndex % progressionBars.length]
+      this.chordIndex++
+
+      // 1. Play Soft Warm Bass Pluck at beat 0 and beat 2 (each bar = 2.0s at 120 BPM)
+      [0, 1.0].forEach((beatOffset) => {
+        const bassOsc = ctx.createOscillator()
+        const bassGain = ctx.createGain()
+        const noteTime = now + beatOffset
+
+        bassOsc.type = 'triangle'
+        bassOsc.frequency.setValueAtTime(bar.bass, noteTime)
+
+        bassGain.gain.setValueAtTime(0.001, noteTime)
+        bassGain.gain.linearRampToValueAtTime(this.musicVolume * 0.4, noteTime + 0.04)
+        bassGain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.9)
+
+        bassOsc.connect(bassGain)
+        bassGain.connect(ctx.destination)
+
+        bassOsc.start(noteTime)
+        bassOsc.stop(noteTime + 0.95)
+      })
+
+      // 2. Play 4 Bouncy Arpeggiated 8th Notes (0.0s, 0.5s, 1.0s, 1.5s)
+      const arpeggioRhythm = [0, 0.5, 1.0, 1.5]
+      arpeggioRhythm.forEach((beatOffset, idx) => {
+        const noteFreq = bar.notes[idx % bar.notes.length]
+        const noteTime = now + beatOffset
+
+        // Marimba / Celesta Pluck Oscillator
+        const osc = ctx.createOscillator()
+        const noteGain = ctx.createGain()
+
+        osc.type = idx % 2 === 0 ? 'sine' : 'triangle'
+        osc.frequency.setValueAtTime(noteFreq, noteTime)
+
+        // Envelope: snappy attack, bouncy decay
+        noteGain.gain.setValueAtTime(0.001, noteTime)
+        noteGain.gain.linearRampToValueAtTime(this.musicVolume * 0.38, noteTime + 0.02)
+        noteGain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.44)
+
+        // Resonant sparkle filter
+        const filter = ctx.createBiquadFilter()
+        filter.type = 'lowpass'
+        filter.frequency.setValueAtTime(1400, noteTime)
+        filter.frequency.exponentialRampToValueAtTime(400, noteTime + 0.44)
+
+        osc.connect(filter)
+        filter.connect(noteGain)
+        noteGain.connect(ctx.destination)
+
+        osc.start(noteTime)
+        osc.stop(noteTime + 0.48)
+      })
+
+      // 3. Playful High Sparkle Celesta on the off-beat (0.75s or 1.25s)
+      if (Math.random() > 0.35) {
+        const sparkleOsc = ctx.createOscillator()
+        const sparkleGain = ctx.createGain()
+        const sparkleTime = now + (Math.random() > 0.5 ? 0.75 : 1.25)
+
+        const highNotes = [659.25, 783.99, 880.0, 1046.5] // E5, G5, A5, C6
+        const highFreq = highNotes[Math.floor(Math.random() * highNotes.length)]
+
+        sparkleOsc.type = 'sine'
+        sparkleOsc.frequency.setValueAtTime(highFreq, sparkleTime)
+
+        sparkleGain.gain.setValueAtTime(0.001, sparkleTime)
+        sparkleGain.gain.linearRampToValueAtTime(this.musicVolume * 0.25, sparkleTime + 0.015)
+        sparkleGain.gain.exponentialRampToValueAtTime(0.001, sparkleTime + 0.35)
+
+        sparkleOsc.connect(sparkleGain)
+        sparkleGain.connect(ctx.destination)
+
+        sparkleOsc.start(sparkleTime)
+        sparkleOsc.stop(sparkleTime + 0.38)
+      }
+    } catch {
+      // Fail silently
+    }
   }
 
   /**
@@ -142,6 +515,7 @@ class SfxService {
       const now = ctx.currentTime
 
       switch (cue) {
+        case 'button_click':
         case 'card_flip':
           this.synthesizeCardFlip(ctx, now)
           break
@@ -255,6 +629,24 @@ class SfxService {
           break
         case 'treat_pop':
           this.synthesizeTreatPop(ctx, now)
+          break
+        case 'forge_hammer':
+          this.synthesizeForgeHammer(ctx, now)
+          break
+        case 'spell_awaken':
+          this.synthesizeSpellAwaken(ctx, now)
+          break
+        case 'rune_snap':
+          this.synthesizeRuneSnap(ctx, now)
+          break
+        case 'marimba_strike':
+          this.synthesizeMarimbaStrike(ctx, now)
+          break
+        case 'rhyme_match':
+          this.synthesizeRhymeMatch(ctx, now)
+          break
+        case 'beat_pulse':
+          this.synthesizeBeatPulse(ctx, now)
           break
         default:
           break
@@ -1087,6 +1479,72 @@ class SfxService {
   }
 
   /**
+   * Forge hammer: heavy metallic impact clang with resonant anvil chime.
+   */
+  private synthesizeForgeHammer(ctx: AudioContext, now: number): void {
+    // Low metallic thud
+    const oscLow = ctx.createOscillator()
+    const gainLow = this.createGain(ctx, 0.3)
+    oscLow.type = 'triangle'
+    oscLow.frequency.setValueAtTime(140, now)
+    oscLow.frequency.exponentialRampToValueAtTime(45, now + 0.15)
+    gainLow.gain.setValueAtTime(0.3 * this.masterVolume, now)
+    gainLow.gain.exponentialRampToValueAtTime(0.001, now + 0.22)
+    oscLow.connect(gainLow)
+    oscLow.start(now)
+    oscLow.stop(now + 0.25)
+
+    // High resonant metallic chime (anvil ringing)
+    const notes = [1318.51, 1975.53, 2637.02] // E6, B6, E7
+    notes.forEach((freq) => {
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.18)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, now)
+      gain.gain.setValueAtTime(0.18 * this.masterVolume, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
+      osc.connect(gain)
+      osc.start(now)
+      osc.stop(now + 0.85)
+    })
+  }
+
+  /**
+   * Spell awaken: celestial ascending chord arpeggio with shimmering harmonics.
+   */
+  private synthesizeSpellAwaken(ctx: AudioContext, now: number): void {
+    const notes = [587.33, 739.99, 880.0, 1174.66, 1479.98] // D5, F#5, A5, D6, F#6
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.07
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.2)
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, t)
+      gain.gain.setValueAtTime(0.2 * this.masterVolume, t)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6)
+      osc.connect(gain)
+      osc.start(t)
+      osc.stop(t + 0.65)
+    })
+  }
+
+  /**
+   * Rune snap: crisp magnetic latch click.
+   */
+  private synthesizeRuneSnap(ctx: AudioContext, now: number): void {
+    const osc = ctx.createOscillator()
+    const gain = this.createGain(ctx, 0.22)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(600, now)
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.04)
+    gain.gain.setValueAtTime(0.22 * this.masterVolume, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.1)
+  }
+
+  /**
    * Treat pop: cheerful, bouncy bubble pop.
    */
   private synthesizeTreatPop(ctx: AudioContext, now: number): void {
@@ -1103,6 +1561,56 @@ class SfxService {
     osc.connect(gain)
     osc.start(now)
     osc.stop(now + 0.14)
+  }
+
+  /**
+   * Marimba strike: warm, resonant wooden mallet strike with fast decay.
+   */
+  private synthesizeMarimbaStrike(ctx: AudioContext, now: number): void {
+    const osc = ctx.createOscillator()
+    const gain = this.createGain(ctx, 0.28)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(523.25, now) // C5
+    gain.gain.setValueAtTime(0.28 * this.masterVolume, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.38)
+  }
+
+  /**
+   * Rhyme match: lush celestial chime with major third harmony.
+   */
+  private synthesizeRhymeMatch(ctx: AudioContext, now: number): void {
+    const freqs = [659.25, 830.61, 987.77, 1318.51] // E5, G#5, B5, E6
+    freqs.forEach((freq, idx) => {
+      const t = now + idx * 0.05
+      const osc = ctx.createOscillator()
+      const gain = this.createGain(ctx, 0.2)
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, t)
+      gain.gain.setValueAtTime(0.2 * this.masterVolume, t)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5)
+      osc.connect(gain)
+      osc.start(t)
+      osc.stop(t + 0.55)
+    })
+  }
+
+  /**
+   * Beat pulse: subtle low-frequency acoustic metronome click.
+   */
+  private synthesizeBeatPulse(ctx: AudioContext, now: number): void {
+    const osc = ctx.createOscillator()
+    const gain = this.createGain(ctx, 0.12)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(220, now)
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.05)
+    gain.gain.setValueAtTime(0.12 * this.masterVolume, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.07)
   }
 }
 

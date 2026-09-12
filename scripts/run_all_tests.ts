@@ -40,6 +40,9 @@ const suites = [
   'scripts/test_magic_machine.ts',
   'scripts/test_mystery_detective.ts',
   'scripts/test_potion_scales.ts',
+  'scripts/test_spellforge.ts',
+  'scripts/test_memory_museum.ts',
+  'scripts/test_rhythm_spells.ts',
   'scripts/test_progression_service.ts',
   'scripts/test_playroom_world.ts',
   'scripts/test_child_adventure_passport.ts',
@@ -48,6 +51,29 @@ const suites = [
   'scripts/test_overworld_and_mascot.ts',
   'scripts/test_parent_hub_and_narration.ts',
   'scripts/test_creature_sanctuary.ts',
+  'scripts/test_haptics_service.ts',
+  'scripts/test_game_registry.ts',
+  'scripts/test_image_engine_free_v1.ts',
+  'scripts/test_robopath_academy.ts',
+  'scripts/test_ecosystem_sandbox.ts',
+  'scripts/test_cosmic_constellation.ts',
+  'scripts/test_invention_lab.ts',
+  'scripts/test_academy_curriculum.ts',
+  'scripts/test_academy_practice_evaluators.ts',
+  'scripts/test_academy_hints_and_mastery.ts',
+  'scripts/test_canonical_10_games.ts',
+  'scripts/test_academy_phase5_universe.ts',
+  'scripts/test_academy_phase6_lesson_experience.ts',
+  'scripts/test_academy_phase7_child_experience.ts',
+  'scripts/test_academy_phase8_immersion.ts',
+  'scripts/test_academy_phase9_elevation.ts',
+  'scripts/test_academy_universal_curriculum_validator.ts',
+  'scripts/test_academy_runtime_integrity.ts',
+  'scripts/test_orbis_design_system.ts',
+  'scripts/test_orbis_character_actor_engine.ts',
+  'scripts/test_orbis_audio_mixer.ts',
+  'scripts/test_orbis_gold_lesson.ts',
+  'scripts/test_phase4a1_lesson_stage.ts',
 ]
 
 console.log('==================================================================')
@@ -56,6 +82,7 @@ console.log('==================================================================\
 
 let passedSuites = 0
 let failedSuites = 0
+const failedSuiteNames: string[] = []
 
 for (const suite of suites) {
   const fullPath = path.resolve(process.cwd(), suite)
@@ -69,15 +96,19 @@ for (const suite of suites) {
     console.log(output.trim())
     passedSuites++
   } catch (err: any) {
-    console.error(`❌ Suite failed: ${suite}`)
+    console.log(`❌ Suite failed: ${suite}`)
+    failedSuiteNames.push(suite)
     if (err.stdout) console.log(err.stdout.toString())
-    if (err.stderr) console.error(err.stderr.toString())
+    if (err.stderr) console.log(err.stderr.toString())
     failedSuites++
   }
 }
 
 console.log('\n==================================================================')
 console.log(`🏆 ALL SUITES SUMMARY: ${passedSuites}/${suites.length} SUITES PASSED (${failedSuites} FAILED)`)
+if (failedSuiteNames.length > 0) {
+  console.log(`FAILED SUITES: ${failedSuiteNames.join(', ')}`)
+}
 console.log('==================================================================\n')
 
 if (failedSuites > 0) {
